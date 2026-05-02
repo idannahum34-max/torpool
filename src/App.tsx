@@ -13,6 +13,7 @@ type Slot = {
   id: string;
   business_id: string | null;
   business_name: string;
+  business_phone: string | null;
   service_name: string;
   slot_date: string;
   slot_time: string;
@@ -34,6 +35,20 @@ type Claim = {
 type HistoryItem = Slot & {
   claims: Claim[];
 };
+
+function normalizePhoneForWhatsapp(phone: string | null | undefined) {
+  if (!phone) return "";
+
+  const digits = phone.replace(/\D/g, "");
+
+  if (digits.startsWith("972")) return digits;
+
+  if (digits.startsWith("0")) {
+    return `972${digits.slice(1)}`;
+  }
+
+  return digits;
+}
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -327,6 +342,11 @@ function App() {
       return;
     }
 
+    if (!business.phone) {
+      alert("חסר טלפון עסק. צרי עסק עם מספר טלפון כדי שלקוחות יוכלו לשלוח WhatsApp.");
+      return;
+    }
+
     setLoading(true);
 
     const form = new FormData(event.currentTarget);
@@ -334,6 +354,7 @@ function App() {
     const newSlot = {
       business_id: business.id,
       business_name: business.business_name,
+      business_phone: business.phone,
       service_name: String(form.get("serviceName") || ""),
       slot_date: String(form.get("date") || ""),
       slot_time: String(form.get("time") || ""),
@@ -492,6 +513,29 @@ function App() {
     return "•";
   }
 
+  function buildClientToBusinessWhatsappLink() {
+    if (!slot || !claim) return "";
+
+    const targetPhone = normalizePhoneForWhatsapp(slot.business_phone);
+
+    if (!targetPhone) return "";
+
+    const message = `היי, ראיתי שהתפנה תור דרך תורפול 💌
+
+שם: ${claim.client_name}
+טלפון: ${claim.client_phone}
+
+אני רוצה את התור:
+${slot.service_name}
+${slot.slot_date}
+${slot.slot_time}
+${slot.price ? `${slot.price} ₪` : ""}
+
+השארתי פרטים באתר ומחכה לאישור 🙏`;
+
+    return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
+  }
+
   function copyClientLink(slotToCopy?: Slot) {
     const targetSlot = slotToCopy || slot;
     if (!targetSlot) return;
@@ -568,6 +612,8 @@ ${link}
     }
   }
 
+  const clientWhatsappLink = buildClientToBusinessWhatsappLink();
+
   if (loading) {
     return (
       <main className="page" dir="rtl">
@@ -615,7 +661,23 @@ ${link}
               {clientSubmitted && (
                 <div className="success-card">
                   <h2>הבקשה נשלחה ✅</h2>
-                  <p>בעלת העסק קיבלה את הפרטים ותחזור אלייך לאישור.</p>
+                  <p>עכשיו שלחי WhatsApp לבעלת העסק כדי שהיא תקבל את הבקשה מיד.</p>
+
+                  {clientWhatsappLink ? (
+                    <a
+                      className="btn btn-whatsapp"
+                      href={clientWhatsappLink}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      שלחי WhatsApp לבעלת העסק
+                    </a>
+                  ) : (
+                    <p className="muted">
+                      אין מספר WhatsApp מחובר לעסק הזה. בעלת העסק עדיין תראה את
+                      הבקשה במערכת.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -734,7 +796,7 @@ ${link}
               <h1 className="page-title">יצירת העסק שלך</h1>
 
               <p className="subtitle">
-                זה השם שיופיע ללקוחות כשהן פותחות תור שהתפנה.
+                זה השם והטלפון שיופיעו ללקוחות כשהן פותחות תור שהתפנה.
               </p>
 
               <form onSubmit={handleCreateBusiness} className="form">
@@ -748,8 +810,8 @@ ${link}
                 </label>
 
                 <label>
-                  טלפון העסק
-                  <input name="phone" placeholder="לדוגמה: 0501234567" />
+                  טלפון WhatsApp של העסק
+                  <input name="phone" placeholder="לדוגמה: 0501234567" required />
                 </label>
 
                 <button className="btn btn-primary" type="submit">
@@ -821,7 +883,7 @@ ${link}
               <h1 className="page-title">תור שהתפנה</h1>
 
               <p className="subtitle">
-                מלאי את הפרטים, העתיקי הודעת WhatsApp, ושלחי ללקוחות שלך.
+                מלאי את הפרטים, העתיקי הודעת WhatsApp, ושלחי לרשימת התפוצה שלך.
               </p>
 
               <form onSubmit={handleCreateSlot} className="form">
@@ -977,7 +1039,7 @@ ${link}
 
               <div className="notice">
                 <p>1. העתיקי את הודעת ה־WhatsApp</p>
-                <p>2. שלחי ללקוחות או לקבוצת הלקוחות שלך</p>
+                <p>2. שלחי לרשימת התפוצה / קבוצה קיימת שלך</p>
                 <p>3. מי שתשאיר פרטים תופיע כאן לאישור</p>
               </div>
 
@@ -1011,7 +1073,7 @@ ${link}
               )}
 
               <button className="btn btn-whatsapp" onClick={() => copyWhatsappMessage()}>
-                העתיקי הודעת WhatsApp
+                העתיקי הודעת WhatsApp לרשימת תפוצה
               </button>
 
               <div className="link-box">
