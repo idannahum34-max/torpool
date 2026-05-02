@@ -138,7 +138,6 @@ function App() {
     }
 
     const slots = data || [];
-
     const approvedSlots = slots.filter((item) => item.status === "confirmed");
     const pendingSlots = slots.filter((item) => item.status === "claimed");
 
@@ -189,11 +188,7 @@ function App() {
       setClaim(null);
     }
 
-    if (view === "client") {
-      setShowClientPage(true);
-    } else {
-      setShowClientPage(false);
-    }
+    setShowClientPage(view === "client");
   }
 
   async function handleAuth(event: React.FormEvent<HTMLFormElement>) {
@@ -479,12 +474,21 @@ function App() {
   }
 
   function statusLabel(status: string) {
-    if (status === "open") return "🟢 פתוח לשליחה";
-    if (status === "claimed") return "🟡 יש בקשה לאישור";
-    if (status === "confirmed") return "✅ התור אושר";
-    if (status === "approved") return "✅ אושר";
-    if (status === "pending") return "🟡 ממתין לאישור";
+    if (status === "open") return "פתוח לשליחה";
+    if (status === "claimed") return "יש בקשה לאישור";
+    if (status === "confirmed") return "התור אושר";
+    if (status === "approved") return "אושר";
+    if (status === "pending") return "ממתין לאישור";
     return status;
+  }
+
+  function statusIcon(status: string) {
+    if (status === "open") return "🟢";
+    if (status === "claimed") return "🟡";
+    if (status === "confirmed") return "✅";
+    if (status === "approved") return "✅";
+    if (status === "pending") return "🟡";
+    return "•";
   }
 
   function copyClientLink(slotToCopy?: Slot) {
@@ -566,12 +570,12 @@ ${link}
   if (loading) {
     return (
       <main style={styles.page} dir="rtl">
-        <div style={styles.glowOne} />
-        <div style={styles.glowTwo} />
-        <div style={styles.glowThree} />
+        <div style={styles.noise} />
+        <div style={styles.glowPink} />
+        <div style={styles.glowPurple} />
 
         <section style={styles.shell}>
-          <div style={styles.mainCard}>
+          <div style={styles.panel}>
             <p style={styles.badge}>תורפול</p>
             <h1 style={styles.formTitle}>טוען...</h1>
           </div>
@@ -582,16 +586,16 @@ ${link}
 
   return (
     <main style={styles.page} dir="rtl">
-      <div style={styles.glowOne} />
-      <div style={styles.glowTwo} />
-      <div style={styles.glowThree} />
+      <div style={styles.noise} />
+      <div style={styles.glowPink} />
+      <div style={styles.glowPurple} />
 
       <section style={styles.shell}>
-        <div style={styles.mainCard}>
-          <p style={styles.badge}>תורפול · ממלאת לך תורים שהתפנו דרך WhatsApp</p>
+        <div style={styles.panel}>
+          <p style={styles.badge}>תורפול · ממלאת תורים שהתפנו דרך WhatsApp</p>
 
           {slot && showClientPage && (
-            <>
+            <div style={styles.narrowLayout}>
               <h1 style={styles.formTitle}>בקשת תור אצל {slot.business_name}</h1>
 
               <div style={styles.previewBox}>
@@ -608,14 +612,14 @@ ${link}
               </div>
 
               {clientSubmitted && (
-                <div style={styles.claimBox}>
+                <div style={styles.successBox}>
                   <h2 style={styles.previewTitle}>הבקשה נשלחה ✅</h2>
                   <p>בעלת העסק קיבלה את הפרטים ותחזור אלייך לאישור.</p>
                 </div>
               )}
 
               {clientSubmitted ? null : slot.status === "confirmed" ? (
-                <div style={styles.claimBox}>
+                <div style={styles.successBox}>
                   <h2 style={styles.previewTitle}>התור כבר נתפס ואושר ✅</h2>
                   <p>אפשר לחכות לתור הבא שיתפנה.</p>
                 </div>
@@ -641,53 +645,54 @@ ${link}
                     />
                   </label>
 
-                  <button style={styles.button} type="submit">
+                  <button style={styles.primaryButton} type="submit">
                     שלחי בקשה לתור
                   </button>
                 </form>
               )}
-            </>
+            </div>
           )}
 
           {!slot && !session && (
-            <>
-              <h1 style={styles.title}>התפנה תור? מלאי אותו בקליק.</h1>
+            <div style={styles.landingGrid}>
+              <div style={styles.heroSide}>
+                <div style={styles.pill}>לינק אחד. הודעת WhatsApp אחת. תור שמתחיל להתמלא.</div>
 
-              <p style={styles.subtitle}>
-                יוצרת לינק, שולחת ללקוחות ב־WhatsApp, מקבלת בקשות, ומאשרת את מי
-                שמתאימה ליומן שלך.
-              </p>
+                <h1 style={styles.heroTitle}>התפנה תור? מלאי אותו בלי לרדוף אחרי לקוחות.</h1>
 
-              <div style={styles.featureGrid}>
-                <div style={styles.featureCard}>
-                  <div style={styles.featureIcon}>⚡</div>
-                  <h3 style={styles.featureTitle}>יוצרת תור שהתפנה</h3>
-                  <p style={styles.featureText}>
-                    ממלאת טיפול, שעה ומחיר — והמערכת מכינה לך לינק מוכן.
-                  </p>
-                </div>
+                <p style={styles.heroText}>
+                  תורפול נותנת לקוסמטיקאיות וקליניקות דרך מהירה להפוך חור ביומן
+                  לבקשות אמיתיות מלקוחות — בלי ספאם, בלי בלאגן, ובלי הודעות ידניות.
+                </p>
 
-                <div style={styles.featureCard}>
-                  <div style={styles.featureIcon}>💬</div>
-                  <h3 style={styles.featureTitle}>שולחת ב־WhatsApp</h3>
-                  <p style={styles.featureText}>
-                    בלחיצה אחת את מעתיקה הודעה ושולחת ללקוחות שלך.
-                  </p>
-                </div>
+                <div style={styles.featureStack}>
+                  <div style={styles.featureLine}>
+                    <span style={styles.featureDot}>⚡</span>
+                    <span>יוצרת תור שהתפנה בפחות מדקה.</span>
+                  </div>
 
-                <div style={styles.featureCard}>
-                  <div style={styles.featureIcon}>✅</div>
-                  <h3 style={styles.featureTitle}>מאשרת מי שמתאימה</h3>
-                  <p style={styles.featureText}>
-                    הלקוחה משאירה פרטים ואת מחליטה את מי לאשר.
-                  </p>
+                  <div style={styles.featureLine}>
+                    <span style={styles.featureDot}>💬</span>
+                    <span>מעתיקה הודעת WhatsApp מוכנה לשליחה.</span>
+                  </div>
+
+                  <div style={styles.featureLine}>
+                    <span style={styles.featureDot}>✅</span>
+                    <span>מקבלת בקשות ומאשרת רק את מי שמתאימה לך.</span>
+                  </div>
                 </div>
               </div>
 
-              <div style={styles.authBox}>
-                <h2 style={styles.previewTitle}>
-                  {authMode === "login" ? "התחברות" : "הרשמה"}
+              <div style={styles.authCard}>
+                <h2 style={styles.authTitle}>
+                  {authMode === "login" ? "התחברות" : "פתיחת חשבון"}
                 </h2>
+
+                <p style={styles.authSubtitle}>
+                  {authMode === "login"
+                    ? "כנסי לדשבורד ותראי מה התפנה לך היום."
+                    : "צרי חשבון ותתחילי למלא תורים שהתפנו."}
+                </p>
 
                 <form onSubmit={handleAuth} style={styles.form}>
                   <label style={styles.label}>
@@ -712,13 +717,13 @@ ${link}
                     />
                   </label>
 
-                  <button style={styles.button} type="submit">
+                  <button style={styles.primaryButton} type="submit">
                     {authMode === "login" ? "התחברי" : "צרי משתמש"}
                   </button>
                 </form>
 
                 <button
-                  style={styles.secondaryButton}
+                  style={styles.textButton}
                   onClick={() =>
                     setAuthMode(authMode === "login" ? "register" : "login")
                   }
@@ -728,11 +733,11 @@ ${link}
                     : "כבר יש לך משתמש? התחברי"}
                 </button>
               </div>
-            </>
+            </div>
           )}
 
           {session && !business && !slot && (
-            <>
+            <div style={styles.narrowLayout}>
               <h1 style={styles.formTitle}>יצירת העסק שלך</h1>
 
               <p style={styles.subtitle}>
@@ -759,7 +764,7 @@ ${link}
                   />
                 </label>
 
-                <button style={styles.button} type="submit">
+                <button style={styles.primaryButton} type="submit">
                   צרי את העסק
                 </button>
               </form>
@@ -767,7 +772,7 @@ ${link}
               <button style={styles.secondaryButton} onClick={handleLogout}>
                 התנתקות
               </button>
-            </>
+            </div>
           )}
 
           {session &&
@@ -776,10 +781,18 @@ ${link}
             !slot &&
             !showClientPage &&
             !showHistory && (
-              <>
-                <h1 style={styles.title}>{business.business_name}</h1>
+              <div style={styles.dashboardLayout}>
+                <div style={styles.dashboardHeader}>
+                  <div>
+                    <p style={styles.overline}>הדשבורד שלך</p>
+                    <h1 style={styles.dashboardTitle}>{business.business_name}</h1>
+                    <p style={styles.dashboardSubtitle}>מה התפנה לך היום?</p>
+                  </div>
 
-                <p style={styles.subtitle}>מה התפנה לך היום?</p>
+                  <button style={styles.secondaryButton} onClick={handleLogout}>
+                    התנתקות
+                  </button>
+                </div>
 
                 <div style={styles.statsGrid}>
                   <div style={styles.statCard}>
@@ -799,28 +812,24 @@ ${link}
                 </div>
 
                 <div style={styles.dashboardTip}>
-                  <strong>איך זה עובד?</strong>
+                  <strong>הזרימה:</strong>
                   <span> יוצרת תור שהתפנה → שולחת ב־WhatsApp → מאשרת לקוחה.</span>
                 </div>
 
                 <div style={styles.actionRow}>
-                  <button style={styles.button} onClick={() => setShowForm(true)}>
+                  <button style={styles.primaryButton} onClick={() => setShowForm(true)}>
                     התפנה לי תור
                   </button>
 
                   <button style={styles.secondaryButton} onClick={loadHistory}>
                     ראי תורים שהתפנו
                   </button>
-
-                  <button style={styles.secondaryButton} onClick={handleLogout}>
-                    התנתקות
-                  </button>
                 </div>
-              </>
+              </div>
             )}
 
           {showForm && business && (
-            <>
+            <div style={styles.narrowLayout}>
               <h1 style={styles.formTitle}>תור שהתפנה</h1>
 
               <p style={styles.subtitleSmall}>
@@ -865,11 +874,11 @@ ${link}
                   <textarea
                     name="note"
                     placeholder="לדוגמה: מתאים ללקוחות חדשות וקיימות"
-                    style={{ ...styles.input, minHeight: "110px", resize: "vertical" }}
+                    style={{ ...styles.input, minHeight: "100px", resize: "vertical" }}
                   />
                 </label>
 
-                <button style={styles.button} type="submit">
+                <button style={styles.primaryButton} type="submit">
                   צרי לינק לתור
                 </button>
 
@@ -881,12 +890,21 @@ ${link}
                   חזרה
                 </button>
               </form>
-            </>
+            </div>
           )}
 
           {showHistory && business && (
-            <>
-              <h1 style={styles.formTitle}>תורים שהתפנו</h1>
+            <div style={styles.dashboardLayout}>
+              <div style={styles.dashboardHeader}>
+                <div>
+                  <p style={styles.overline}>ניהול תורים</p>
+                  <h1 style={styles.dashboardTitle}>תורים שהתפנו</h1>
+                </div>
+
+                <button style={styles.secondaryButton} onClick={resetToDashboard}>
+                  חזרה לדשבורד
+                </button>
+              </div>
 
               {history.length === 0 ? (
                 <div style={styles.previewBox}>
@@ -901,20 +919,27 @@ ${link}
                     return (
                       <div key={item.id} style={styles.historyCard}>
                         <div style={styles.historyTopRow}>
-                          <h2 style={styles.previewTitle}>{item.service_name}</h2>
-                          <div style={styles.statusPill}>{statusLabel(item.status)}</div>
-                        </div>
+                          <div>
+                            <h2 style={styles.previewTitle}>{item.service_name}</h2>
+                            <p style={styles.historyMeta}>
+                              {item.slot_date} · {item.slot_time}
+                              {item.price ? ` · ${item.price} ₪` : ""}
+                            </p>
+                          </div>
 
-                        <p style={styles.historyMeta}>
-                          {item.slot_date} · {item.slot_time}
-                          {item.price ? ` · ${item.price} ₪` : ""}
-                        </p>
+                          <div style={styles.statusPill}>
+                            {statusIcon(item.status)} {statusLabel(item.status)}
+                          </div>
+                        </div>
 
                         {latestClaim ? (
                           <div style={styles.miniClaimBox}>
                             <p>לקוחה: {latestClaim.client_name}</p>
                             <p>טלפון: {latestClaim.client_phone}</p>
-                            <p>סטטוס: {statusLabel(latestClaim.status)}</p>
+                            <p>
+                              סטטוס: {statusIcon(latestClaim.status)}{" "}
+                              {statusLabel(latestClaim.status)}
+                            </p>
                           </div>
                         ) : (
                           <p style={styles.mutedText}>עדיין אין בקשות לתור הזה.</p>
@@ -958,19 +983,15 @@ ${link}
               )}
 
               <div style={styles.actionRow}>
-                <button style={styles.button} onClick={() => setShowForm(true)}>
+                <button style={styles.primaryButton} onClick={() => setShowForm(true)}>
                   התפנה לי תור
                 </button>
-
-                <button style={styles.secondaryButton} onClick={resetToDashboard}>
-                  חזרה לדשבורד
-                </button>
               </div>
-            </>
+            </div>
           )}
 
           {slot && !showClientPage && !showHistory && isOwnerView && (
-            <>
+            <div style={styles.narrowLayout}>
               <h1 style={styles.formTitle}>התור שלך מוכן לשליחה 💌</h1>
 
               <div style={styles.stepBox}>
@@ -989,15 +1010,19 @@ ${link}
                 <p>שעה: {slot.slot_time}</p>
                 {slot.price && <p>מחיר: {slot.price} ₪</p>}
                 {slot.note && <p>הערה: {slot.note}</p>}
-                <p>{statusLabel(slot.status)}</p>
+                <p>
+                  {statusIcon(slot.status)} {statusLabel(slot.status)}
+                </p>
               </div>
 
               {claim && (
-                <div style={styles.claimBox}>
+                <div style={styles.successBox}>
                   <h2 style={styles.previewTitle}>יש בקשה לתור ✅</h2>
                   <p>שם: {claim.client_name}</p>
                   <p>טלפון: {claim.client_phone}</p>
-                  <p>סטטוס: {statusLabel(claim.status)}</p>
+                  <p>
+                    סטטוס: {statusIcon(claim.status)} {statusLabel(claim.status)}
+                  </p>
 
                   {claim.status !== "approved" && (
                     <button
@@ -1034,21 +1059,21 @@ ${link}
                   ראי תורים שהתפנו
                 </button>
 
-                <button style={styles.button} onClick={resetToDashboard}>
+                <button style={styles.primaryButton} onClick={resetToDashboard}>
                   חזרה לדשבורד
                 </button>
               </div>
-            </>
+            </div>
           )}
 
           {slot && !showClientPage && !showHistory && !isOwnerView && (
-            <>
+            <div style={styles.narrowLayout}>
               <h1 style={styles.formTitle}>הבקשה התקבלה ✅</h1>
 
               <div style={styles.previewBox}>
                 <p>בעלת העסק קיבלה את הפרטים ותחזור אלייך לאישור.</p>
               </div>
-            </>
+            </div>
           )}
         </div>
       </section>
@@ -1060,190 +1085,245 @@ const styles = {
   page: {
     minHeight: "100vh",
     background:
-      "radial-gradient(circle at top right, rgba(236,72,153,0.26), transparent 32%), radial-gradient(circle at bottom left, rgba(168,85,247,0.18), transparent 34%), linear-gradient(135deg, #09070b 0%, #130b14 42%, #070509 100%)",
+      "radial-gradient(circle at 80% 0%, rgba(236,72,153,0.24), transparent 30%), radial-gradient(circle at 10% 95%, rgba(168,85,247,0.16), transparent 32%), linear-gradient(135deg, #08070b 0%, #130b14 44%, #070509 100%)",
     color: "#fff7fb",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontFamily:
       "Inter, Assistant, Arial, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
-    padding: "36px 16px",
+    padding: "24px 14px",
     position: "relative" as const,
-    overflow: "hidden" as const,
+    overflowX: "hidden" as const,
   },
-  glowOne: {
+  noise: {
     position: "absolute" as const,
-    top: "-160px",
+    inset: 0,
+    backgroundImage:
+      "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)",
+    backgroundSize: "42px 42px",
+    maskImage:
+      "radial-gradient(circle at center, rgba(0,0,0,0.75), transparent 78%)",
+    pointerEvents: "none" as const,
+  },
+  glowPink: {
+    position: "absolute" as const,
+    top: "-150px",
     right: "-120px",
-    width: "480px",
-    height: "480px",
+    width: "420px",
+    height: "420px",
     borderRadius: "999px",
     background:
-      "radial-gradient(circle, rgba(236,72,153,0.35), rgba(236,72,153,0.02), transparent)",
-    filter: "blur(70px)",
+      "radial-gradient(circle, rgba(236,72,153,0.32), rgba(236,72,153,0.025), transparent)",
+    filter: "blur(75px)",
     pointerEvents: "none" as const,
   },
-  glowTwo: {
+  glowPurple: {
     position: "absolute" as const,
-    bottom: "-180px",
+    bottom: "-160px",
     left: "-130px",
-    width: "440px",
-    height: "440px",
+    width: "400px",
+    height: "400px",
     borderRadius: "999px",
     background:
-      "radial-gradient(circle, rgba(168,85,247,0.28), rgba(168,85,247,0.02), transparent)",
+      "radial-gradient(circle, rgba(168,85,247,0.23), rgba(168,85,247,0.025), transparent)",
     filter: "blur(80px)",
-    pointerEvents: "none" as const,
-  },
-  glowThree: {
-    position: "absolute" as const,
-    top: "48%",
-    left: "50%",
-    width: "260px",
-    height: "260px",
-    borderRadius: "999px",
-    background:
-      "radial-gradient(circle, rgba(34,197,94,0.14), rgba(34,197,94,0.015), transparent)",
-    filter: "blur(90px)",
-    transform: "translate(-50%, -50%)",
     pointerEvents: "none" as const,
   },
   shell: {
     width: "100%",
-    maxWidth: "1120px",
+    maxWidth: "980px",
     position: "relative" as const,
     zIndex: 1,
   },
-  mainCard: {
+  panel: {
     width: "100%",
-    borderRadius: "42px",
-    padding: "42px",
+    boxSizing: "border-box" as const,
+    borderRadius: "32px",
+    padding: "30px",
     border: "1px solid rgba(255,255,255,0.1)",
     background:
-      "linear-gradient(180deg, rgba(255,255,255,0.095), rgba(255,255,255,0.045))",
+      "linear-gradient(180deg, rgba(255,255,255,0.085), rgba(255,255,255,0.04))",
     boxShadow:
-      "0 40px 140px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.12)",
-    backdropFilter: "blur(28px)",
+      "0 34px 120px rgba(0,0,0,0.52), inset 0 1px 0 rgba(255,255,255,0.1)",
+    backdropFilter: "blur(26px)",
     textAlign: "center" as const,
   },
   badge: {
     display: "inline-flex",
     alignItems: "center",
-    gap: "8px",
-    border: "1px solid rgba(244,114,182,0.36)",
+    justifyContent: "center",
+    border: "1px solid rgba(244,114,182,0.34)",
     background:
-      "linear-gradient(135deg, rgba(244,114,182,0.18), rgba(168,85,247,0.08))",
+      "linear-gradient(135deg, rgba(244,114,182,0.16), rgba(168,85,247,0.08))",
     color: "#fbcfe8",
     borderRadius: "999px",
-    padding: "11px 18px",
-    marginBottom: "30px",
+    padding: "9px 15px",
+    marginBottom: "24px",
     fontWeight: 900,
-    fontSize: "15px",
-    letterSpacing: "0.1px",
-    boxShadow:
-      "0 0 36px rgba(236,72,153,0.18), inset 0 1px 0 rgba(255,255,255,0.1)",
+    fontSize: "13px",
+    boxShadow: "0 0 30px rgba(236,72,153,0.14)",
   },
-  title: {
-    fontSize: "clamp(44px, 7vw, 82px)",
-    lineHeight: "0.98",
+  landingGrid: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1.15fr) minmax(320px, 0.85fr)",
+    gap: "24px",
+    alignItems: "center",
+    textAlign: "right" as const,
+  },
+  heroSide: {
+    padding: "8px 4px",
+  },
+  pill: {
+    display: "inline-flex",
+    border: "1px solid rgba(244,114,182,0.24)",
+    background: "rgba(244,114,182,0.08)",
+    color: "#f9a8d4",
+    borderRadius: "999px",
+    padding: "8px 13px",
+    marginBottom: "18px",
+    fontSize: "13px",
+    fontWeight: 900,
+  },
+  heroTitle: {
     margin: 0,
     color: "#fff9fd",
-    fontWeight: 950,
-    letterSpacing: "-2.4px",
-    textShadow: "0 16px 55px rgba(236,72,153,0.22)",
-  },
-  formTitle: {
-    fontSize: "clamp(36px, 5vw, 58px)",
+    fontSize: "clamp(38px, 5.6vw, 64px)",
     lineHeight: "1.02",
-    margin: "0 0 26px",
-    color: "#fff9fd",
     fontWeight: 950,
-    letterSpacing: "-1.7px",
+    letterSpacing: "-1.8px",
     textShadow: "0 14px 45px rgba(236,72,153,0.18)",
   },
-  subtitle: {
-    fontSize: "21px",
-    lineHeight: "1.82",
+  heroText: {
+    margin: "18px 0 20px",
     color: "#dac6d2",
-    marginTop: "24px",
-    marginBottom: "32px",
-    maxWidth: "780px",
+    fontSize: "18px",
+    lineHeight: "1.75",
+    maxWidth: "620px",
+  },
+  featureStack: {
+    display: "grid",
+    gap: "10px",
+    marginTop: "18px",
+  },
+  featureLine: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    color: "#ead8e3",
+    fontSize: "15px",
+    lineHeight: "1.5",
+  },
+  featureDot: {
+    width: "34px",
+    height: "34px",
+    borderRadius: "13px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background:
+      "linear-gradient(135deg, rgba(244,114,182,0.2), rgba(168,85,247,0.1))",
+    border: "1px solid rgba(255,255,255,0.1)",
+    flexShrink: 0,
+  },
+  authCard: {
+    border: "1px solid rgba(255,255,255,0.1)",
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.035))",
+    borderRadius: "26px",
+    padding: "22px",
+    boxShadow:
+      "0 24px 90px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.07)",
+    textAlign: "right" as const,
+  },
+  authTitle: {
+    margin: "0 0 6px",
+    fontSize: "26px",
+    color: "#fff9fd",
+    fontWeight: 950,
+  },
+  authSubtitle: {
+    margin: "0 0 18px",
+    color: "#cdb6c4",
+    fontSize: "14px",
+    lineHeight: "1.6",
+  },
+  narrowLayout: {
+    width: "100%",
+    maxWidth: "620px",
+    marginInline: "auto",
+  },
+  dashboardLayout: {
+    width: "100%",
+    maxWidth: "820px",
+    marginInline: "auto",
+  },
+  dashboardHeader: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: "16px",
+    marginBottom: "18px",
+    textAlign: "right" as const,
+  },
+  overline: {
+    margin: "0 0 5px",
+    color: "#f9a8d4",
+    fontSize: "13px",
+    fontWeight: 900,
+  },
+  dashboardTitle: {
+    margin: 0,
+    color: "#fff9fd",
+    fontSize: "clamp(34px, 5vw, 54px)",
+    lineHeight: "1",
+    fontWeight: 950,
+    letterSpacing: "-1.2px",
+  },
+  dashboardSubtitle: {
+    margin: "10px 0 0",
+    color: "#dac6d2",
+    fontSize: "17px",
+  },
+  formTitle: {
+    fontSize: "clamp(32px, 4.8vw, 48px)",
+    lineHeight: "1.05",
+    margin: "0 0 20px",
+    color: "#fff9fd",
+    fontWeight: 950,
+    letterSpacing: "-1.2px",
+    textShadow: "0 12px 38px rgba(236,72,153,0.15)",
+  },
+  subtitle: {
+    fontSize: "17px",
+    lineHeight: "1.75",
+    color: "#dac6d2",
+    marginTop: "14px",
+    marginBottom: "24px",
+    maxWidth: "620px",
     marginInline: "auto",
   },
   subtitleSmall: {
-    fontSize: "17px",
-    lineHeight: "1.7",
-    color: "#cdb6c4",
-    marginTop: "-8px",
-    marginBottom: "26px",
-  },
-  authBox: {
-    marginTop: "32px",
-    border: "1px solid rgba(255,255,255,0.1)",
-    background:
-      "linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.035))",
-    borderRadius: "32px",
-    padding: "28px",
-    boxShadow:
-      "0 28px 100px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.08)",
-  },
-  featureGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
-    gap: "18px",
-    marginTop: "22px",
-    marginBottom: "34px",
-  },
-  featureCard: {
-    border: "1px solid rgba(255,255,255,0.1)",
-    background:
-      "linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.035))",
-    borderRadius: "30px",
-    padding: "24px",
-    textAlign: "right" as const,
-    boxShadow:
-      "0 26px 90px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.07)",
-  },
-  featureIcon: {
-    width: "48px",
-    height: "48px",
-    borderRadius: "18px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "27px",
-    marginBottom: "14px",
-    background:
-      "linear-gradient(135deg, rgba(244,114,182,0.24), rgba(168,85,247,0.13))",
-    border: "1px solid rgba(255,255,255,0.1)",
-    boxShadow: "0 14px 35px rgba(236,72,153,0.14)",
-  },
-  featureTitle: {
-    margin: "0 0 10px",
-    fontSize: "20px",
-    color: "#fff5fb",
-    fontWeight: 900,
-  },
-  featureText: {
-    margin: 0,
     fontSize: "15px",
-    lineHeight: "1.75",
-    color: "#d1bac8",
+    lineHeight: "1.65",
+    color: "#cdb6c4",
+    marginTop: "-4px",
+    marginBottom: "20px",
   },
   form: {
     display: "grid",
-    gap: "17px",
+    gap: "14px",
     textAlign: "right" as const,
   },
   doubleGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: "17px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: "14px",
   },
   label: {
     display: "grid",
-    gap: "9px",
-    fontSize: "15px",
+    gap: "8px",
+    fontSize: "14px",
     color: "#f7dce9",
     fontWeight: 800,
   },
@@ -1253,254 +1333,271 @@ const styles = {
     border: "1px solid rgba(255,255,255,0.12)",
     background: "rgba(255,255,255,0.06)",
     color: "#fff9fd",
-    borderRadius: "20px",
-    padding: "16px 18px",
-    fontSize: "16px",
+    borderRadius: "16px",
+    padding: "13px 15px",
+    fontSize: "15px",
     outline: "none",
     boxShadow:
-      "inset 0 1px 0 rgba(255,255,255,0.06), 0 14px 34px rgba(0,0,0,0.14)",
+      "inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 28px rgba(0,0,0,0.12)",
   },
-  button: {
-    marginTop: "15px",
+  primaryButton: {
+    marginTop: "10px",
     background:
       "linear-gradient(135deg, #ff7ac1 0%, #ec4899 45%, #be185d 100%)",
     color: "white",
     border: "1px solid rgba(255,255,255,0.14)",
-    borderRadius: "22px",
-    padding: "17px 30px",
-    fontSize: "19px",
+    borderRadius: "17px",
+    padding: "13px 22px",
+    fontSize: "16px",
     fontWeight: 950,
     cursor: "pointer",
     boxShadow:
-      "0 22px 55px rgba(236,72,153,0.34), inset 0 1px 0 rgba(255,255,255,0.28)",
+      "0 18px 45px rgba(236,72,153,0.32), inset 0 1px 0 rgba(255,255,255,0.25)",
   },
   whatsappButton: {
-    marginTop: "20px",
-    marginBottom: "14px",
+    marginTop: "14px",
+    marginBottom: "12px",
     background:
       "linear-gradient(135deg, #34d399 0%, #22c55e 45%, #15803d 100%)",
     color: "white",
     border: "1px solid rgba(255,255,255,0.14)",
-    borderRadius: "22px",
-    padding: "17px 30px",
-    fontSize: "19px",
+    borderRadius: "17px",
+    padding: "13px 22px",
+    fontSize: "16px",
     fontWeight: 950,
     cursor: "pointer",
     display: "block",
     width: "100%",
     boxShadow:
-      "0 22px 55px rgba(34,197,94,0.3), inset 0 1px 0 rgba(255,255,255,0.25)",
+      "0 18px 45px rgba(34,197,94,0.26), inset 0 1px 0 rgba(255,255,255,0.22)",
   },
   secondaryButton: {
-    marginTop: "12px",
+    marginTop: "10px",
     background: "rgba(255,255,255,0.055)",
     color: "#f4deea",
     border: "1px solid rgba(255,255,255,0.12)",
-    borderRadius: "20px",
-    padding: "14px 24px",
-    fontSize: "15px",
+    borderRadius: "16px",
+    padding: "11px 18px",
+    fontSize: "14px",
     fontWeight: 700,
     cursor: "pointer",
     boxShadow:
-      "inset 0 1px 0 rgba(255,255,255,0.06), 0 12px 30px rgba(0,0,0,0.16)",
+      "inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 26px rgba(0,0,0,0.14)",
+  },
+  textButton: {
+    width: "100%",
+    marginTop: "12px",
+    background: "transparent",
+    border: "none",
+    color: "#f9a8d4",
+    fontSize: "14px",
+    fontWeight: 800,
+    cursor: "pointer",
   },
   approveButton: {
-    marginTop: "14px",
+    marginTop: "12px",
     background: "linear-gradient(135deg, #34d399, #16a34a)",
     color: "white",
     border: "1px solid rgba(255,255,255,0.14)",
-    borderRadius: "20px",
-    padding: "15px 26px",
-    fontSize: "17px",
+    borderRadius: "16px",
+    padding: "12px 20px",
+    fontSize: "15px",
     fontWeight: 950,
     cursor: "pointer",
   },
   previewBox: {
     border: "1px solid rgba(255,255,255,0.1)",
     background:
-      "linear-gradient(180deg, rgba(255,255,255,0.085), rgba(255,255,255,0.04))",
-    borderRadius: "32px",
-    padding: "26px",
-    marginBottom: "22px",
+      "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))",
+    borderRadius: "24px",
+    padding: "20px",
+    marginBottom: "16px",
     textAlign: "right" as const,
-    fontSize: "18px",
+    fontSize: "15px",
     color: "#faeaf2",
     boxShadow:
-      "0 28px 90px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.08)",
+      "0 22px 75px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.07)",
   },
   infoBox: {
     border: "1px solid rgba(244,114,182,0.24)",
     background:
       "linear-gradient(135deg, rgba(244,114,182,0.1), rgba(168,85,247,0.055))",
-    borderRadius: "24px",
-    padding: "17px",
-    marginBottom: "22px",
+    borderRadius: "18px",
+    padding: "14px",
+    marginBottom: "16px",
     textAlign: "right" as const,
     color: "#f6d6e6",
-    fontSize: "16px",
+    fontSize: "14px",
+    lineHeight: "1.6",
   },
   stepBox: {
     border: "1px solid rgba(244,114,182,0.24)",
     background:
       "linear-gradient(135deg, rgba(244,114,182,0.1), rgba(168,85,247,0.055))",
-    borderRadius: "26px",
-    padding: "22px",
-    marginBottom: "22px",
+    borderRadius: "20px",
+    padding: "16px",
+    marginBottom: "16px",
     textAlign: "right" as const,
     color: "#f6d6e6",
-    fontSize: "17px",
+    fontSize: "14px",
+    lineHeight: "1.45",
   },
   linkBox: {
     border: "1px solid rgba(244,114,182,0.22)",
     background:
       "linear-gradient(135deg, rgba(244,114,182,0.08), rgba(168,85,247,0.045))",
-    borderRadius: "26px",
-    padding: "22px",
-    marginBottom: "22px",
+    borderRadius: "20px",
+    padding: "16px",
+    marginBottom: "16px",
     textAlign: "right" as const,
   },
   linkLabel: {
     margin: "0 0 8px",
     color: "#f9a8d4",
     fontWeight: 950,
+    fontSize: "14px",
   },
   linkText: {
     direction: "ltr" as const,
     textAlign: "left" as const,
     background: "rgba(0,0,0,0.32)",
     border: "1px solid rgba(255,255,255,0.12)",
-    borderRadius: "18px",
-    padding: "14px",
+    borderRadius: "14px",
+    padding: "11px",
     overflowX: "auto" as const,
     whiteSpace: "nowrap" as const,
     color: "#fff9fd",
+    fontSize: "13px",
   },
-  claimBox: {
+  successBox: {
     border: "1px solid rgba(34,197,94,0.34)",
     background:
       "linear-gradient(135deg, rgba(34,197,94,0.13), rgba(34,197,94,0.045))",
-    borderRadius: "30px",
-    padding: "26px",
-    marginBottom: "22px",
+    borderRadius: "22px",
+    padding: "20px",
+    marginBottom: "16px",
     textAlign: "right" as const,
-    fontSize: "18px",
+    fontSize: "15px",
     color: "#edfff2",
-    boxShadow: "0 22px 60px rgba(34,197,94,0.08)",
+    boxShadow: "0 18px 50px rgba(34,197,94,0.07)",
   },
   miniClaimBox: {
     border: "1px solid rgba(34,197,94,0.3)",
     background: "rgba(34,197,94,0.08)",
-    borderRadius: "20px",
-    padding: "13px 17px",
-    marginTop: "13px",
+    borderRadius: "16px",
+    padding: "11px 14px",
+    marginTop: "12px",
+    fontSize: "14px",
   },
   previewTitle: {
     marginTop: 0,
-    fontSize: "30px",
+    fontSize: "22px",
     color: "#fff9fd",
-    letterSpacing: "-0.6px",
+    letterSpacing: "-0.35px",
     fontWeight: 950,
   },
   statsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-    gap: "18px",
-    marginTop: "30px",
-    marginBottom: "22px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))",
+    gap: "12px",
+    marginTop: "20px",
+    marginBottom: "16px",
   },
   statCard: {
     background:
-      "linear-gradient(180deg, rgba(255,255,255,0.085), rgba(255,255,255,0.04))",
+      "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))",
     border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "30px",
-    padding: "24px",
+    borderRadius: "22px",
+    padding: "16px",
     boxShadow:
-      "0 26px 85px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.07)",
+      "0 20px 60px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,255,255,0.07)",
   },
   statNumber: {
     margin: 0,
-    fontSize: "36px",
+    fontSize: "28px",
     fontWeight: 950,
     color: "#ff8ac7",
-    textShadow: "0 12px 35px rgba(236,72,153,0.22)",
+    textShadow: "0 10px 30px rgba(236,72,153,0.18)",
   },
   statLabel: {
-    margin: "9px 0 0",
+    margin: "6px 0 0",
     color: "#d9c5d1",
-    fontSize: "14px",
+    fontSize: "13px",
     fontWeight: 700,
   },
   dashboardTip: {
-    marginTop: "14px",
-    marginBottom: "22px",
-    padding: "17px 20px",
-    borderRadius: "22px",
+    marginTop: "10px",
+    marginBottom: "16px",
+    padding: "13px 15px",
+    borderRadius: "17px",
     border: "1px solid rgba(255,255,255,0.1)",
     background:
       "linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))",
     color: "#ddc9d5",
-    fontSize: "15px",
+    fontSize: "14px",
   },
   actionRow: {
     display: "flex",
     flexWrap: "wrap" as const,
-    gap: "12px",
+    gap: "10px",
     justifyContent: "center",
     alignItems: "center",
     marginTop: "8px",
   },
   historyList: {
     display: "grid",
-    gap: "18px",
+    gap: "12px",
   },
   historyCard: {
     border: "1px solid rgba(255,255,255,0.1)",
     background:
       "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))",
-    borderRadius: "32px",
-    padding: "26px",
+    borderRadius: "24px",
+    padding: "18px",
     textAlign: "right" as const,
     color: "#faeaf2",
     boxShadow:
-      "0 28px 90px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.08)",
+      "0 20px 65px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.07)",
   },
   historyTopRow: {
     display: "flex",
-    gap: "12px",
+    gap: "10px",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     flexWrap: "wrap" as const,
   },
   historyMeta: {
     color: "#d5bfcb",
-    marginTop: "6px",
+    marginTop: "5px",
     marginBottom: "8px",
+    fontSize: "13px",
   },
   statusPill: {
     borderRadius: "999px",
-    padding: "9px 13px",
+    padding: "7px 11px",
     background: "rgba(255,255,255,0.065)",
     border: "1px solid rgba(255,255,255,0.1)",
     color: "#fce7f3",
-    fontSize: "13px",
+    fontSize: "12px",
     fontWeight: 900,
   },
   mutedText: {
     color: "#b39aa8",
+    fontSize: "14px",
   },
   buttonRow: {
     display: "flex",
     flexWrap: "wrap" as const,
-    gap: "10px",
-    marginTop: "17px",
+    gap: "8px",
+    marginTop: "14px",
   },
   smallButton: {
     background: "linear-gradient(135deg, #ff7ac1, #db2777)",
     color: "white",
     border: "none",
-    borderRadius: "15px",
-    padding: "11px 17px",
-    fontSize: "14px",
+    borderRadius: "12px",
+    padding: "8px 13px",
+    fontSize: "13px",
     fontWeight: 950,
     cursor: "pointer",
   },
@@ -1508,18 +1605,18 @@ const styles = {
     background: "rgba(255,255,255,0.055)",
     color: "#f0dce7",
     border: "1px solid rgba(255,255,255,0.11)",
-    borderRadius: "15px",
-    padding: "11px 17px",
-    fontSize: "14px",
+    borderRadius: "12px",
+    padding: "8px 13px",
+    fontSize: "13px",
     cursor: "pointer",
   },
   smallWhatsappButton: {
     background: "linear-gradient(135deg, #34d399, #16a34a)",
     color: "white",
     border: "none",
-    borderRadius: "15px",
-    padding: "11px 17px",
-    fontSize: "14px",
+    borderRadius: "12px",
+    padding: "8px 13px",
+    fontSize: "13px",
     fontWeight: 950,
     cursor: "pointer",
   },
@@ -1527,9 +1624,9 @@ const styles = {
     background: "linear-gradient(135deg, #34d399, #15803d)",
     color: "white",
     border: "none",
-    borderRadius: "15px",
-    padding: "11px 17px",
-    fontSize: "14px",
+    borderRadius: "12px",
+    padding: "8px 13px",
+    fontSize: "13px",
     fontWeight: 950,
     cursor: "pointer",
   },
