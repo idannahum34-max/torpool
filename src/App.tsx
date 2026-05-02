@@ -343,7 +343,9 @@ function App() {
     }
 
     if (!business.phone) {
-      alert("חסר טלפון עסק. צרי עסק עם מספר טלפון כדי שלקוחות יוכלו לשלוח WhatsApp.");
+      alert(
+        "חסר טלפון עסק. צרי עסק עם מספר טלפון כדי שלקוחות יוכלו לשלוח WhatsApp."
+      );
       return;
     }
 
@@ -536,6 +538,34 @@ ${slot.price ? `${slot.price} ₪` : ""}
     return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
   }
 
+  function buildApprovalWhatsappLink(
+    claimToSend?: Claim | null,
+    slotToSend?: Slot | null
+  ) {
+    const activeClaim = claimToSend || claim;
+    const activeSlot = slotToSend || slot;
+
+    if (!activeClaim || !activeSlot) return "";
+
+    const targetPhone = normalizePhoneForWhatsapp(activeClaim.client_phone);
+
+    if (!targetPhone) return "";
+
+    const message = `היי ${activeClaim.client_name} 🤍
+
+התור שלך אושר ✅
+
+פרטי התור:
+${activeSlot.service_name}
+תאריך: ${activeSlot.slot_date}
+שעה: ${activeSlot.slot_time}
+${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
+
+נתראה 🙏`;
+
+    return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
+  }
+
   function copyClientLink(slotToCopy?: Slot) {
     const targetSlot = slotToCopy || slot;
     if (!targetSlot) return;
@@ -613,6 +643,7 @@ ${link}
   }
 
   const clientWhatsappLink = buildClientToBusinessWhatsappLink();
+  const approvalWhatsappLink = buildApprovalWhatsappLink();
 
   if (loading) {
     return (
@@ -958,6 +989,9 @@ ${link}
                 <div className="history-list">
                   {history.map((item) => {
                     const latestClaim = item.claims?.[0];
+                    const approvalLink = latestClaim
+                      ? buildApprovalWhatsappLink(latestClaim, item)
+                      : "";
 
                     return (
                       <div key={item.id} className="history-card">
@@ -1018,6 +1052,20 @@ ${link}
                               אשרי
                             </button>
                           )}
+
+                          {latestClaim &&
+                            (latestClaim.status === "approved" ||
+                              item.status === "confirmed") &&
+                            approvalLink && (
+                              <a
+                                className="small-btn whatsapp-small"
+                                href={approvalLink}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                שלחי אישור
+                              </a>
+                            )}
                         </div>
                       </div>
                     );
@@ -1069,6 +1117,18 @@ ${link}
                       אשרי את התור
                     </button>
                   )}
+
+                  {(claim.status === "approved" || slot.status === "confirmed") &&
+                    approvalWhatsappLink && (
+                      <a
+                        className="btn btn-whatsapp"
+                        href={approvalWhatsappLink}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        שלחי אישור ללקוחה ב־WhatsApp
+                      </a>
+                    )}
                 </div>
               )}
 
