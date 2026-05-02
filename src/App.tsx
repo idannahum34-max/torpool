@@ -48,10 +48,15 @@ function App() {
   const [claim, setClaim] = useState<Claim | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [clientSubmitted, setClientSubmitted] = useState(false);
 
   const clientLink = slot
     ? `${window.location.origin}/?slot=${slot.id}&view=client`
     : "";
+
+  const isOwnerView = Boolean(
+    session && business && slot && slot.business_id === business.id
+  );
 
   useEffect(() => {
     startApp();
@@ -209,6 +214,7 @@ function App() {
     setShowHistory(false);
     setShowClientPage(false);
     setShowForm(false);
+    setClientSubmitted(false);
 
     window.history.pushState({}, "", "/");
   }
@@ -254,6 +260,7 @@ function App() {
     setShowClientPage(false);
     setSlot(null);
     setClaim(null);
+    setClientSubmitted(false);
 
     const { data, error } = await supabase
       .from("slots")
@@ -315,6 +322,7 @@ function App() {
     setShowHistory(false);
     setShowForm(false);
     setShowClientPage(false);
+    setClientSubmitted(false);
 
     window.history.pushState({}, "", `/?slot=${data.id}`);
 
@@ -362,9 +370,10 @@ function App() {
     }
 
     setClaim(claimData);
-    setShowClientPage(false);
+    setClientSubmitted(true);
+    setShowClientPage(true);
 
-    window.history.pushState({}, "", `/?slot=${slot.id}`);
+    window.history.pushState({}, "", `/?slot=${slot.id}&view=client`);
 
     setLoading(false);
   }
@@ -374,6 +383,15 @@ function App() {
     const activeSlot = slotToApprove || slot;
 
     if (!activeSlot || !activeClaim) return;
+
+    if (
+      !business ||
+      !activeSlot.business_id ||
+      activeSlot.business_id !== business.id
+    ) {
+      alert("אין לך הרשאה לאשר את התור הזה");
+      return;
+    }
 
     setLoading(true);
 
@@ -425,6 +443,15 @@ function App() {
     const targetSlot = slotToCopy || slot;
     if (!targetSlot) return;
 
+    if (
+      business &&
+      targetSlot.business_id &&
+      targetSlot.business_id !== business.id
+    ) {
+      alert("אין לך הרשאה להעתיק לינק לתור הזה");
+      return;
+    }
+
     const link = `${window.location.origin}/?slot=${targetSlot.id}&view=client`;
     navigator.clipboard.writeText(link);
     alert("הלינק לתור הועתק!");
@@ -433,6 +460,15 @@ function App() {
   function copyWhatsappMessage(slotToCopy?: Slot) {
     const targetSlot = slotToCopy || slot;
     if (!targetSlot) return;
+
+    if (
+      business &&
+      targetSlot.business_id &&
+      targetSlot.business_id !== business.id
+    ) {
+      alert("אין לך הרשאה להעתיק הודעה לתור הזה");
+      return;
+    }
 
     const link = `${window.location.origin}/?slot=${targetSlot.id}&view=client`;
 
@@ -460,6 +496,7 @@ ${link}
     setShowHistory(false);
     setShowForm(false);
     setShowClientPage(false);
+    setClientSubmitted(false);
 
     window.history.pushState({}, "", `/?slot=${historySlot.id}`);
   }
@@ -471,6 +508,7 @@ ${link}
     setShowHistory(false);
     setShowClientPage(false);
     setShowForm(false);
+    setClientSubmitted(false);
     window.history.pushState({}, "", "/");
   }
 
@@ -502,7 +540,14 @@ ${link}
               {slot.note && <p>הערה: {slot.note}</p>}
             </div>
 
-            {slot.status === "confirmed" ? (
+            {clientSubmitted && (
+              <div style={styles.claimBox}>
+                <h2 style={styles.previewTitle}>הבקשה התקבלה ✅</h2>
+                <p>בעלת העסק קיבלה את הפרטים ותחזור אלייך לאישור.</p>
+              </div>
+            )}
+
+            {clientSubmitted ? null : slot.status === "confirmed" ? (
               <div style={styles.claimBox}>
                 <h2 style={styles.previewTitle}>התור כבר נתפס ואושר ✅</h2>
                 <p>אפשר לחכות לתור הבא שמתפנה.</p>
@@ -734,9 +779,7 @@ ${link}
 
                   return (
                     <div key={item.id} style={styles.historyCard}>
-                      <h2 style={styles.previewTitle}>
-                        {item.service_name}
-                      </h2>
+                      <h2 style={styles.previewTitle}>{item.service_name}</h2>
 
                       <p>
                         {item.slot_date} · {item.slot_time}
@@ -752,7 +795,9 @@ ${link}
                           <p>סטטוס בקשה: {statusLabel(latestClaim.status)}</p>
                         </div>
                       ) : (
-                        <p style={styles.mutedText}>עדיין אין בקשות לביטול הזה.</p>
+                        <p style={styles.mutedText}>
+                          עדיין אין בקשות לביטול הזה.
+                        </p>
                       )}
 
                       <div style={styles.buttonRow}>
@@ -802,7 +847,7 @@ ${link}
           </>
         )}
 
-        {slot && !showClientPage && !showHistory && (
+        {slot && !showClientPage && !showHistory && isOwnerView && (
           <>
             <h1 style={styles.formTitle}>נוצר ביטול 🎉</h1>
 
@@ -823,7 +868,10 @@ ${link}
               <p style={styles.linkLabel}>לינק ללקוחה:</p>
               <p style={styles.linkText}>{clientLink}</p>
 
-              <button style={styles.secondaryButton} onClick={() => copyClientLink()}>
+              <button
+                style={styles.secondaryButton}
+                onClick={() => copyClientLink()}
+              >
                 העתיקי לינק
               </button>
             </div>
@@ -836,14 +884,20 @@ ${link}
                 <p>סטטוס בקשה: {statusLabel(claim.status)}</p>
 
                 {claim.status !== "approved" && (
-                  <button style={styles.approveButton} onClick={() => approveClaim()}>
+                  <button
+                    style={styles.approveButton}
+                    onClick={() => approveClaim()}
+                  >
                     אשרי את התור
                   </button>
                 )}
               </div>
             )}
 
-            <button style={styles.whatsappButton} onClick={() => copyWhatsappMessage()}>
+            <button
+              style={styles.whatsappButton}
+              onClick={() => copyWhatsappMessage()}
+            >
               העתיקי הודעת WhatsApp
             </button>
 
@@ -854,6 +908,16 @@ ${link}
             <button style={styles.button} onClick={resetToDashboard}>
               חזרה לדשבורד
             </button>
+          </>
+        )}
+
+        {slot && !showClientPage && !showHistory && !isOwnerView && (
+          <>
+            <h1 style={styles.formTitle}>הבקשה התקבלה ✅</h1>
+
+            <div style={styles.previewBox}>
+              <p>בעלת העסק קיבלה את הפרטים ותחזור אלייך לאישור.</p>
+            </div>
           </>
         )}
       </section>
