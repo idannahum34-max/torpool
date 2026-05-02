@@ -36,8 +36,6 @@ type HistoryItem = Slot & {
 };
 
 function App() {
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 760);
-
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [business, setBusiness] = useState<Business | null>(null);
@@ -65,12 +63,6 @@ function App() {
   );
 
   useEffect(() => {
-    function handleResize() {
-      setIsMobile(window.innerWidth < 760);
-    }
-
-    window.addEventListener("resize", handleResize);
-
     startApp();
 
     const { data } = supabase.auth.onAuthStateChange((_event, newSession) => {
@@ -88,7 +80,6 @@ function App() {
     });
 
     return () => {
-      window.removeEventListener("resize", handleResize);
       data.subscription.unsubscribe();
     };
   }, []);
@@ -147,6 +138,7 @@ function App() {
     }
 
     const slots = data || [];
+
     const approvedSlots = slots.filter((item) => item.status === "confirmed");
     const pendingSlots = slots.filter((item) => item.status === "claimed");
 
@@ -576,19 +568,17 @@ ${link}
     }
   }
 
-  const styles = createStyles(isMobile);
-
   if (loading) {
     return (
-      <main style={styles.page} dir="rtl">
-        <div style={styles.backgroundGrid} />
-        <div style={styles.glowPink} />
-        <div style={styles.glowPurple} />
+      <main className="page" dir="rtl">
+        <div className="bg-grid" />
+        <div className="glow glow-pink" />
+        <div className="glow glow-purple" />
 
-        <section style={styles.shell}>
-          <div style={styles.panel}>
-            <p style={styles.badge}>תורפול</p>
-            <h1 style={styles.formTitle}>טוען...</h1>
+        <section className="shell shell-narrow">
+          <div className="panel">
+            <p className="badge">תורפול</p>
+            <h1 className="page-title">טוען...</h1>
           </div>
         </section>
       </main>
@@ -596,67 +586,61 @@ ${link}
   }
 
   return (
-    <main style={styles.page} dir="rtl">
-      <div style={styles.backgroundGrid} />
-      <div style={styles.glowPink} />
-      <div style={styles.glowPurple} />
+    <main className="page" dir="rtl">
+      <div className="bg-grid" />
+      <div className="glow glow-pink" />
+      <div className="glow glow-purple" />
 
-      <section style={styles.shell}>
-        <div style={styles.panel}>
-          <p style={styles.badge}>תורפול · ממלאת תורים שהתפנו דרך WhatsApp</p>
+      <section className="shell">
+        <div className="panel">
+          <p className="badge">תורפול · ממלאת תורים שהתפנו דרך WhatsApp</p>
 
           {slot && showClientPage && (
-            <div style={styles.narrowLayout}>
-              <h1 style={styles.formTitle}>בקשת תור אצל {slot.business_name}</h1>
+            <div className="narrow">
+              <h1 className="page-title">בקשת תור אצל {slot.business_name}</h1>
 
-              <div style={styles.previewBox}>
-                <h2 style={styles.previewTitle}>{slot.service_name}</h2>
+              <div className="card soft-card">
+                <h2>{slot.service_name}</h2>
                 <p>📅 תאריך: {slot.slot_date}</p>
                 <p>🕒 שעה: {slot.slot_time}</p>
                 {slot.price && <p>💸 מחיר: {slot.price} ₪</p>}
                 {slot.note && <p>📝 הערה: {slot.note}</p>}
               </div>
 
-              <div style={styles.infoBox}>
+              <div className="notice">
                 השארת פרטים לא מאשרת את התור אוטומטית. בעלת העסק תחזור אלייך
                 לאישור סופי.
               </div>
 
               {clientSubmitted && (
-                <div style={styles.successBox}>
-                  <h2 style={styles.previewTitle}>הבקשה נשלחה ✅</h2>
+                <div className="success-card">
+                  <h2>הבקשה נשלחה ✅</h2>
                   <p>בעלת העסק קיבלה את הפרטים ותחזור אלייך לאישור.</p>
                 </div>
               )}
 
               {clientSubmitted ? null : slot.status === "confirmed" ? (
-                <div style={styles.successBox}>
-                  <h2 style={styles.previewTitle}>התור כבר נתפס ואושר ✅</h2>
+                <div className="success-card">
+                  <h2>התור כבר נתפס ואושר ✅</h2>
                   <p>אפשר לחכות לתור הבא שיתפנה.</p>
                 </div>
               ) : (
-                <form onSubmit={handleClaimSlot} style={styles.form}>
-                  <label style={styles.label}>
+                <form onSubmit={handleClaimSlot} className="form">
+                  <label>
                     שם מלא
-                    <input
-                      name="clientName"
-                      placeholder="לדוגמה: דנה כהן"
-                      required
-                      style={styles.input}
-                    />
+                    <input name="clientName" placeholder="לדוגמה: דנה כהן" required />
                   </label>
 
-                  <label style={styles.label}>
+                  <label>
                     טלפון
                     <input
                       name="clientPhone"
                       placeholder="לדוגמה: 0501234567"
                       required
-                      style={styles.input}
                     />
                   </label>
 
-                  <button style={styles.primaryButton} type="submit">
+                  <button className="btn btn-primary" type="submit">
                     שלחי בקשה לתור
                   </button>
                 </form>
@@ -665,78 +649,74 @@ ${link}
           )}
 
           {!slot && !session && (
-            <div style={styles.landingLayout}>
-              <div style={styles.heroBlock}>
-                <div style={styles.kicker}>לינק אחד. הודעת WhatsApp אחת. תור שמתמלא.</div>
+            <div className="landing">
+              <div className="hero">
+                <div className="kicker">לינק אחד. הודעת WhatsApp אחת. תור שמתמלא.</div>
 
-                <h1 style={styles.heroTitle}>
+                <h1 className="hero-title">
                   התפנה תור? מלאי אותו בלי לרדוף אחרי לקוחות.
                 </h1>
 
-                <p style={styles.heroText}>
+                <p className="hero-text">
                   תורפול עוזרת לקוסמטיקאיות וקליניקות להפוך חור ביומן לבקשות
                   אמיתיות מלקוחות — מהר, נקי, ובשליטה שלך.
                 </p>
 
-                <div style={styles.featureList}>
-                  <div style={styles.featureItem}>
-                    <span style={styles.featureIcon}>⚡</span>
-                    <span>יוצרת תור שהתפנה בפחות מדקה.</span>
+                <div className="feature-list">
+                  <div className="feature-item">
+                    <span>⚡</span>
+                    <p>יוצרת תור שהתפנה בפחות מדקה.</p>
                   </div>
 
-                  <div style={styles.featureItem}>
-                    <span style={styles.featureIcon}>💬</span>
-                    <span>מעתיקה הודעת WhatsApp מוכנה לשליחה.</span>
+                  <div className="feature-item">
+                    <span>💬</span>
+                    <p>מעתיקה הודעת WhatsApp מוכנה לשליחה.</p>
                   </div>
 
-                  <div style={styles.featureItem}>
-                    <span style={styles.featureIcon}>✅</span>
-                    <span>מקבלת בקשות ומאשרת רק את מי שמתאימה.</span>
+                  <div className="feature-item">
+                    <span>✅</span>
+                    <p>מקבלת בקשות ומאשרת רק את מי שמתאימה.</p>
                   </div>
                 </div>
               </div>
 
-              <div style={styles.authCard}>
-                <h2 style={styles.authTitle}>
-                  {authMode === "login" ? "התחברות" : "פתיחת חשבון"}
-                </h2>
+              <div className="auth-card">
+                <h2>{authMode === "login" ? "התחברות" : "פתיחת חשבון"}</h2>
 
-                <p style={styles.authSubtitle}>
+                <p>
                   {authMode === "login"
                     ? "כנסי לדשבורד ותראי מה התפנה לך היום."
                     : "צרי חשבון ותתחילי למלא תורים שהתפנו."}
                 </p>
 
-                <form onSubmit={handleAuth} style={styles.form}>
-                  <label style={styles.label}>
+                <form onSubmit={handleAuth} className="form">
+                  <label>
                     אימייל
                     <input
                       name="email"
                       type="email"
                       required
                       placeholder="you@example.com"
-                      style={styles.input}
                     />
                   </label>
 
-                  <label style={styles.label}>
+                  <label>
                     סיסמה
                     <input
                       name="password"
                       type="password"
                       required
                       placeholder="לפחות 6 תווים"
-                      style={styles.input}
                     />
                   </label>
 
-                  <button style={styles.primaryButton} type="submit">
+                  <button className="btn btn-primary" type="submit">
                     {authMode === "login" ? "התחברי" : "צרי משתמש"}
                   </button>
                 </form>
 
                 <button
-                  style={styles.textButton}
+                  className="link-button"
                   onClick={() =>
                     setAuthMode(authMode === "login" ? "register" : "login")
                   }
@@ -750,39 +730,34 @@ ${link}
           )}
 
           {session && !business && !slot && (
-            <div style={styles.narrowLayout}>
-              <h1 style={styles.formTitle}>יצירת העסק שלך</h1>
+            <div className="narrow">
+              <h1 className="page-title">יצירת העסק שלך</h1>
 
-              <p style={styles.subtitle}>
+              <p className="subtitle">
                 זה השם שיופיע ללקוחות כשהן פותחות תור שהתפנה.
               </p>
 
-              <form onSubmit={handleCreateBusiness} style={styles.form}>
-                <label style={styles.label}>
+              <form onSubmit={handleCreateBusiness} className="form">
+                <label>
                   שם העסק
                   <input
                     name="businessName"
                     placeholder="לדוגמה: קליניקת נועה"
                     required
-                    style={styles.input}
                   />
                 </label>
 
-                <label style={styles.label}>
+                <label>
                   טלפון העסק
-                  <input
-                    name="phone"
-                    placeholder="לדוגמה: 0501234567"
-                    style={styles.input}
-                  />
+                  <input name="phone" placeholder="לדוגמה: 0501234567" />
                 </label>
 
-                <button style={styles.primaryButton} type="submit">
+                <button className="btn btn-primary" type="submit">
                   צרי את העסק
                 </button>
               </form>
 
-              <button style={styles.secondaryButton} onClick={handleLogout}>
+              <button className="btn btn-secondary" onClick={handleLogout}>
                 התנתקות
               </button>
             </div>
@@ -794,47 +769,47 @@ ${link}
             !slot &&
             !showClientPage &&
             !showHistory && (
-              <div style={styles.dashboardLayout}>
-                <div style={styles.dashboardHeader}>
+              <div className="dashboard">
+                <div className="dashboard-header">
                   <div>
-                    <p style={styles.overline}>הדשבורד שלך</p>
-                    <h1 style={styles.dashboardTitle}>{business.business_name}</h1>
-                    <p style={styles.dashboardSubtitle}>מה התפנה לך היום?</p>
+                    <p className="overline">הדשבורד שלך</p>
+                    <h1>{business.business_name}</h1>
+                    <p>מה התפנה לך היום?</p>
                   </div>
 
-                  <button style={styles.secondaryButton} onClick={handleLogout}>
+                  <button className="btn btn-secondary" onClick={handleLogout}>
                     התנתקות
                   </button>
                 </div>
 
-                <div style={styles.statsGrid}>
-                  <div style={styles.statCard}>
-                    <p style={styles.statNumber}>{approvedCount}</p>
-                    <p style={styles.statLabel}>תורים שאושרו</p>
+                <div className="stats">
+                  <div className="stat-card">
+                    <strong>{approvedCount}</strong>
+                    <span>תורים שאושרו</span>
                   </div>
 
-                  <div style={styles.statCard}>
-                    <p style={styles.statNumber}>{approvedValue} ₪</p>
-                    <p style={styles.statLabel}>חזרו ליומן</p>
+                  <div className="stat-card">
+                    <strong>{approvedValue} ₪</strong>
+                    <span>חזרו ליומן</span>
                   </div>
 
-                  <div style={styles.statCard}>
-                    <p style={styles.statNumber}>{pendingCount}</p>
-                    <p style={styles.statLabel}>מחכים לאישור</p>
+                  <div className="stat-card">
+                    <strong>{pendingCount}</strong>
+                    <span>מחכים לאישור</span>
                   </div>
                 </div>
 
-                <div style={styles.dashboardTip}>
-                  <strong>הזרימה:</strong>
-                  <span> יוצרת תור שהתפנה → שולחת ב־WhatsApp → מאשרת לקוחה.</span>
+                <div className="notice">
+                  <strong>הזרימה:</strong>{" "}
+                  יוצרת תור שהתפנה → שולחת ב־WhatsApp → מאשרת לקוחה.
                 </div>
 
-                <div style={styles.actionRow}>
-                  <button style={styles.primaryButton} onClick={() => setShowForm(true)}>
+                <div className="actions">
+                  <button className="btn btn-primary" onClick={() => setShowForm(true)}>
                     התפנה לי תור
                   </button>
 
-                  <button style={styles.secondaryButton} onClick={loadHistory}>
+                  <button className="btn btn-secondary" onClick={loadHistory}>
                     ראי תורים שהתפנו
                   </button>
                 </div>
@@ -842,62 +817,55 @@ ${link}
             )}
 
           {showForm && business && (
-            <div style={styles.narrowLayout}>
-              <h1 style={styles.formTitle}>תור שהתפנה</h1>
+            <div className="narrow">
+              <h1 className="page-title">תור שהתפנה</h1>
 
-              <p style={styles.subtitle}>
+              <p className="subtitle">
                 מלאי את הפרטים, העתיקי הודעת WhatsApp, ושלחי ללקוחות שלך.
               </p>
 
-              <form onSubmit={handleCreateSlot} style={styles.form}>
-                <label style={styles.label}>
+              <form onSubmit={handleCreateSlot} className="form">
+                <label>
                   שם הטיפול
                   <input
                     name="serviceName"
                     placeholder="לדוגמה: טיפול פנים"
                     required
-                    style={styles.input}
                   />
                 </label>
 
-                <div style={styles.doubleGrid}>
-                  <label style={styles.label}>
+                <div className="two-fields">
+                  <label>
                     תאריך
-                    <input name="date" type="date" required style={styles.input} />
+                    <input name="date" type="date" required />
                   </label>
 
-                  <label style={styles.label}>
+                  <label>
                     שעה
-                    <input name="time" type="time" required style={styles.input} />
+                    <input name="time" type="time" required />
                   </label>
                 </div>
 
-                <label style={styles.label}>
+                <label>
                   מחיר
-                  <input
-                    name="price"
-                    type="number"
-                    placeholder="לדוגמה: 350"
-                    style={styles.input}
-                  />
+                  <input name="price" type="number" placeholder="לדוגמה: 350" />
                 </label>
 
-                <label style={styles.label}>
+                <label>
                   הערה קצרה
                   <textarea
                     name="note"
                     placeholder="לדוגמה: מתאים ללקוחות חדשות וקיימות"
-                    style={{ ...styles.input, minHeight: "96px", resize: "vertical" }}
                   />
                 </label>
 
-                <button style={styles.primaryButton} type="submit">
+                <button className="btn btn-primary" type="submit">
                   צרי לינק לתור
                 </button>
 
                 <button
                   type="button"
-                  style={styles.secondaryButton}
+                  className="btn btn-secondary"
                   onClick={() => setShowForm(false)}
                 >
                   חזרה
@@ -907,46 +875,46 @@ ${link}
           )}
 
           {showHistory && business && (
-            <div style={styles.dashboardLayout}>
-              <div style={styles.dashboardHeader}>
+            <div className="dashboard">
+              <div className="dashboard-header">
                 <div>
-                  <p style={styles.overline}>ניהול תורים</p>
-                  <h1 style={styles.dashboardTitle}>תורים שהתפנו</h1>
+                  <p className="overline">ניהול תורים</p>
+                  <h1>תורים שהתפנו</h1>
                 </div>
 
-                <button style={styles.secondaryButton} onClick={resetToDashboard}>
+                <button className="btn btn-secondary" onClick={resetToDashboard}>
                   חזרה לדשבורד
                 </button>
               </div>
 
               {history.length === 0 ? (
-                <div style={styles.previewBox}>
-                  <h2 style={styles.previewTitle}>אין עדיין תורים שהתפנו</h2>
+                <div className="card soft-card">
+                  <h2>אין עדיין תורים שהתפנו</h2>
                   <p>כשתצרי תור ראשון, הוא יופיע כאן.</p>
                 </div>
               ) : (
-                <div style={styles.historyList}>
+                <div className="history-list">
                   {history.map((item) => {
                     const latestClaim = item.claims?.[0];
 
                     return (
-                      <div key={item.id} style={styles.historyCard}>
-                        <div style={styles.historyTopRow}>
+                      <div key={item.id} className="history-card">
+                        <div className="history-top">
                           <div>
-                            <h2 style={styles.previewTitle}>{item.service_name}</h2>
-                            <p style={styles.historyMeta}>
+                            <h2>{item.service_name}</h2>
+                            <p>
                               {item.slot_date} · {item.slot_time}
                               {item.price ? ` · ${item.price} ₪` : ""}
                             </p>
                           </div>
 
-                          <div style={styles.statusPill}>
+                          <span className="status-pill">
                             {statusIcon(item.status)} {statusLabel(item.status)}
-                          </div>
+                          </span>
                         </div>
 
                         {latestClaim ? (
-                          <div style={styles.miniClaimBox}>
+                          <div className="mini-claim">
                             <p>לקוחה: {latestClaim.client_name}</p>
                             <p>טלפון: {latestClaim.client_phone}</p>
                             <p>
@@ -955,26 +923,26 @@ ${link}
                             </p>
                           </div>
                         ) : (
-                          <p style={styles.mutedText}>עדיין אין בקשות לתור הזה.</p>
+                          <p className="muted">עדיין אין בקשות לתור הזה.</p>
                         )}
 
-                        <div style={styles.buttonRow}>
+                        <div className="small-actions">
                           <button
-                            style={styles.smallButton}
+                            className="small-btn primary-small"
                             onClick={() => openSlotFromHistory(item)}
                           >
                             פתחי תור
                           </button>
 
                           <button
-                            style={styles.smallSecondaryButton}
+                            className="small-btn"
                             onClick={() => copyClientLink(item)}
                           >
                             העתיקי לינק
                           </button>
 
                           <button
-                            style={styles.smallWhatsappButton}
+                            className="small-btn whatsapp-small"
                             onClick={() => copyWhatsappMessage(item)}
                           >
                             WhatsApp
@@ -982,7 +950,7 @@ ${link}
 
                           {latestClaim && latestClaim.status !== "approved" && (
                             <button
-                              style={styles.smallApproveButton}
+                              className="small-btn approve-small"
                               onClick={() => approveClaim(latestClaim, item)}
                             >
                               אשרי
@@ -995,8 +963,8 @@ ${link}
                 </div>
               )}
 
-              <div style={styles.actionRow}>
-                <button style={styles.primaryButton} onClick={() => setShowForm(true)}>
+              <div className="actions">
+                <button className="btn btn-primary" onClick={() => setShowForm(true)}>
                   התפנה לי תור
                 </button>
               </div>
@@ -1004,20 +972,17 @@ ${link}
           )}
 
           {slot && !showClientPage && !showHistory && isOwnerView && (
-            <div style={styles.narrowLayout}>
-              <h1 style={styles.formTitle}>התור שלך מוכן לשליחה 💌</h1>
+            <div className="narrow">
+              <h1 className="page-title">התור שלך מוכן לשליחה 💌</h1>
 
-              <div style={styles.stepBox}>
+              <div className="notice">
                 <p>1. העתיקי את הודעת ה־WhatsApp</p>
                 <p>2. שלחי ללקוחות או לקבוצת הלקוחות שלך</p>
                 <p>3. מי שתשאיר פרטים תופיע כאן לאישור</p>
               </div>
 
-              <div style={styles.previewBox}>
-                <h2 style={styles.previewTitle}>
-                  התפנה תור אצל {slot.business_name}
-                </h2>
-
+              <div className="card soft-card">
+                <h2>התפנה תור אצל {slot.business_name}</h2>
                 <p>טיפול: {slot.service_name}</p>
                 <p>תאריך: {slot.slot_date}</p>
                 <p>שעה: {slot.slot_time}</p>
@@ -1029,8 +994,8 @@ ${link}
               </div>
 
               {claim && (
-                <div style={styles.successBox}>
-                  <h2 style={styles.previewTitle}>יש בקשה לתור ✅</h2>
+                <div className="success-card">
+                  <h2>יש בקשה לתור ✅</h2>
                   <p>שם: {claim.client_name}</p>
                   <p>טלפון: {claim.client_phone}</p>
                   <p>
@@ -1038,41 +1003,32 @@ ${link}
                   </p>
 
                   {claim.status !== "approved" && (
-                    <button
-                      style={styles.approveButton}
-                      onClick={() => approveClaim()}
-                    >
+                    <button className="btn btn-approve" onClick={() => approveClaim()}>
                       אשרי את התור
                     </button>
                   )}
                 </div>
               )}
 
-              <button
-                style={styles.whatsappButton}
-                onClick={() => copyWhatsappMessage()}
-              >
+              <button className="btn btn-whatsapp" onClick={() => copyWhatsappMessage()}>
                 העתיקי הודעת WhatsApp
               </button>
 
-              <div style={styles.linkBox}>
-                <p style={styles.linkLabel}>לינק ללקוחה:</p>
-                <p style={styles.linkText}>{clientLink}</p>
+              <div className="link-box">
+                <p>לינק ללקוחה:</p>
+                <div className="link-text">{clientLink}</div>
 
-                <button
-                  style={styles.secondaryButton}
-                  onClick={() => copyClientLink()}
-                >
+                <button className="btn btn-secondary" onClick={() => copyClientLink()}>
                   העתיקי לינק בלבד
                 </button>
               </div>
 
-              <div style={styles.actionRow}>
-                <button style={styles.secondaryButton} onClick={loadHistory}>
+              <div className="actions">
+                <button className="btn btn-secondary" onClick={loadHistory}>
                   ראי תורים שהתפנו
                 </button>
 
-                <button style={styles.primaryButton} onClick={resetToDashboard}>
+                <button className="btn btn-primary" onClick={resetToDashboard}>
                   חזרה לדשבורד
                 </button>
               </div>
@@ -1080,10 +1036,10 @@ ${link}
           )}
 
           {slot && !showClientPage && !showHistory && !isOwnerView && (
-            <div style={styles.narrowLayout}>
-              <h1 style={styles.formTitle}>הבקשה התקבלה ✅</h1>
+            <div className="narrow">
+              <h1 className="page-title">הבקשה התקבלה ✅</h1>
 
-              <div style={styles.previewBox}>
+              <div className="card soft-card">
                 <p>בעלת העסק קיבלה את הפרטים ותחזור אלייך לאישור.</p>
               </div>
             </div>
@@ -1092,575 +1048,6 @@ ${link}
       </section>
     </main>
   );
-}
-
-function createStyles(isMobile: boolean) {
-  return {
-    page: {
-      minHeight: "100vh",
-      background:
-        "radial-gradient(circle at 80% 0%, rgba(236,72,153,0.24), transparent 30%), radial-gradient(circle at 8% 92%, rgba(168,85,247,0.16), transparent 32%), linear-gradient(135deg, #08070b 0%, #130b14 44%, #070509 100%)",
-      color: "#fff7fb",
-      display: "flex",
-      alignItems: "flex-start",
-      justifyContent: "center",
-      fontFamily:
-        "Inter, Assistant, Arial, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
-      padding: isMobile ? "12px" : "24px",
-      position: "relative" as const,
-      overflowX: "hidden" as const,
-      boxSizing: "border-box" as const,
-    },
-    backgroundGrid: {
-      position: "absolute" as const,
-      inset: 0,
-      backgroundImage:
-        "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)",
-      backgroundSize: "42px 42px",
-      maskImage:
-        "radial-gradient(circle at center, rgba(0,0,0,0.72), transparent 78%)",
-      pointerEvents: "none" as const,
-    },
-    glowPink: {
-      position: "absolute" as const,
-      top: "-150px",
-      right: "-120px",
-      width: isMobile ? "280px" : "420px",
-      height: isMobile ? "280px" : "420px",
-      borderRadius: "999px",
-      background:
-        "radial-gradient(circle, rgba(236,72,153,0.32), rgba(236,72,153,0.025), transparent)",
-      filter: "blur(75px)",
-      pointerEvents: "none" as const,
-    },
-    glowPurple: {
-      position: "absolute" as const,
-      bottom: "-160px",
-      left: "-130px",
-      width: isMobile ? "260px" : "400px",
-      height: isMobile ? "260px" : "400px",
-      borderRadius: "999px",
-      background:
-        "radial-gradient(circle, rgba(168,85,247,0.23), rgba(168,85,247,0.025), transparent)",
-      filter: "blur(80px)",
-      pointerEvents: "none" as const,
-    },
-    shell: {
-      width: "100%",
-      maxWidth: isMobile ? "100%" : "980px",
-      position: "relative" as const,
-      zIndex: 1,
-      boxSizing: "border-box" as const,
-    },
-    panel: {
-      width: "100%",
-      boxSizing: "border-box" as const,
-      borderRadius: isMobile ? "24px" : "32px",
-      padding: isMobile ? "18px 14px" : "30px",
-      border: "1px solid rgba(255,255,255,0.1)",
-      background:
-        "linear-gradient(180deg, rgba(255,255,255,0.085), rgba(255,255,255,0.04))",
-      boxShadow:
-        "0 34px 120px rgba(0,0,0,0.52), inset 0 1px 0 rgba(255,255,255,0.1)",
-      backdropFilter: "blur(26px)",
-      textAlign: "center" as const,
-      overflow: "hidden" as const,
-    },
-    badge: {
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      maxWidth: "100%",
-      boxSizing: "border-box" as const,
-      border: "1px solid rgba(244,114,182,0.34)",
-      background:
-        "linear-gradient(135deg, rgba(244,114,182,0.16), rgba(168,85,247,0.08))",
-      color: "#fbcfe8",
-      borderRadius: "999px",
-      padding: isMobile ? "8px 12px" : "9px 15px",
-      marginBottom: isMobile ? "18px" : "24px",
-      fontWeight: 900,
-      fontSize: isMobile ? "12px" : "13px",
-      lineHeight: "1.4",
-      textAlign: "center" as const,
-      whiteSpace: isMobile ? ("normal" as const) : ("nowrap" as const),
-      boxShadow: "0 0 30px rgba(236,72,153,0.14)",
-    },
-    landingLayout: {
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.1fr) minmax(320px, 0.9fr)",
-      gap: isMobile ? "20px" : "26px",
-      alignItems: "center",
-      textAlign: "right" as const,
-    },
-    heroBlock: {
-      textAlign: isMobile ? ("center" as const) : ("right" as const),
-      padding: isMobile ? "0" : "8px 4px",
-    },
-    kicker: {
-      display: "inline-flex",
-      border: "1px solid rgba(244,114,182,0.24)",
-      background: "rgba(244,114,182,0.08)",
-      color: "#f9a8d4",
-      borderRadius: "999px",
-      padding: "8px 13px",
-      marginBottom: isMobile ? "14px" : "18px",
-      fontSize: isMobile ? "12px" : "13px",
-      fontWeight: 900,
-      lineHeight: "1.4",
-    },
-    heroTitle: {
-      margin: 0,
-      color: "#fff9fd",
-      fontSize: isMobile ? "36px" : "clamp(38px, 5.4vw, 64px)",
-      lineHeight: "1.03",
-      fontWeight: 950,
-      letterSpacing: isMobile ? "-1px" : "-1.8px",
-      textShadow: "0 14px 45px rgba(236,72,153,0.18)",
-    },
-    heroText: {
-      margin: isMobile ? "14px auto 18px" : "18px 0 20px",
-      color: "#dac6d2",
-      fontSize: isMobile ? "15px" : "18px",
-      lineHeight: "1.7",
-      maxWidth: "620px",
-    },
-    featureList: {
-      display: "grid",
-      gap: "10px",
-      marginTop: "18px",
-      maxWidth: isMobile ? "360px" : "none",
-      marginInline: isMobile ? "auto" : "0",
-    },
-    featureItem: {
-      display: "flex",
-      alignItems: "center",
-      gap: "10px",
-      color: "#ead8e3",
-      fontSize: isMobile ? "14px" : "15px",
-      lineHeight: "1.5",
-      textAlign: "right" as const,
-    },
-    featureIcon: {
-      width: "34px",
-      height: "34px",
-      borderRadius: "13px",
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      background:
-        "linear-gradient(135deg, rgba(244,114,182,0.2), rgba(168,85,247,0.1))",
-      border: "1px solid rgba(255,255,255,0.1)",
-      flexShrink: 0,
-    },
-    authCard: {
-      width: "100%",
-      boxSizing: "border-box" as const,
-      border: "1px solid rgba(255,255,255,0.1)",
-      background:
-        "linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.035))",
-      borderRadius: isMobile ? "22px" : "26px",
-      padding: isMobile ? "18px" : "22px",
-      boxShadow:
-        "0 24px 90px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.07)",
-      textAlign: "right" as const,
-    },
-    authTitle: {
-      margin: "0 0 6px",
-      fontSize: "26px",
-      color: "#fff9fd",
-      fontWeight: 950,
-    },
-    authSubtitle: {
-      margin: "0 0 18px",
-      color: "#cdb6c4",
-      fontSize: "14px",
-      lineHeight: "1.6",
-    },
-    narrowLayout: {
-      width: "100%",
-      maxWidth: "620px",
-      marginInline: "auto",
-      boxSizing: "border-box" as const,
-    },
-    dashboardLayout: {
-      width: "100%",
-      maxWidth: "820px",
-      marginInline: "auto",
-      boxSizing: "border-box" as const,
-    },
-    dashboardHeader: {
-      display: "flex",
-      flexDirection: isMobile ? ("column" as const) : ("row" as const),
-      alignItems: isMobile ? "stretch" : "flex-start",
-      justifyContent: "space-between",
-      gap: "16px",
-      marginBottom: "18px",
-      textAlign: "right" as const,
-    },
-    overline: {
-      margin: "0 0 5px",
-      color: "#f9a8d4",
-      fontSize: "13px",
-      fontWeight: 900,
-    },
-    dashboardTitle: {
-      margin: 0,
-      color: "#fff9fd",
-      fontSize: isMobile ? "34px" : "clamp(34px, 5vw, 54px)",
-      lineHeight: "1",
-      fontWeight: 950,
-      letterSpacing: "-1.2px",
-    },
-    dashboardSubtitle: {
-      margin: "10px 0 0",
-      color: "#dac6d2",
-      fontSize: "17px",
-    },
-    formTitle: {
-      fontSize: isMobile ? "30px" : "clamp(32px, 4.8vw, 48px)",
-      lineHeight: "1.05",
-      margin: "0 0 20px",
-      color: "#fff9fd",
-      fontWeight: 950,
-      letterSpacing: "-1.2px",
-      textShadow: "0 12px 38px rgba(236,72,153,0.15)",
-    },
-    subtitle: {
-      fontSize: "16px",
-      lineHeight: "1.7",
-      color: "#dac6d2",
-      marginTop: "14px",
-      marginBottom: "22px",
-      maxWidth: "620px",
-      marginInline: "auto",
-    },
-    form: {
-      display: "grid",
-      gap: "14px",
-      textAlign: "right" as const,
-    },
-    doubleGrid: {
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(180px, 1fr))",
-      gap: "14px",
-    },
-    label: {
-      display: "grid",
-      gap: "8px",
-      fontSize: "14px",
-      color: "#f7dce9",
-      fontWeight: 800,
-    },
-    input: {
-      width: "100%",
-      boxSizing: "border-box" as const,
-      border: "1px solid rgba(255,255,255,0.12)",
-      background: "rgba(255,255,255,0.06)",
-      color: "#fff9fd",
-      borderRadius: "16px",
-      padding: "13px 15px",
-      fontSize: "15px",
-      outline: "none",
-      boxShadow:
-        "inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 28px rgba(0,0,0,0.12)",
-    },
-    primaryButton: {
-      marginTop: "10px",
-      background:
-        "linear-gradient(135deg, #ff7ac1 0%, #ec4899 45%, #be185d 100%)",
-      color: "white",
-      border: "1px solid rgba(255,255,255,0.14)",
-      borderRadius: "16px",
-      padding: "13px 22px",
-      fontSize: "16px",
-      fontWeight: 950,
-      cursor: "pointer",
-      width: isMobile ? "100%" : "auto",
-      boxShadow:
-        "0 18px 45px rgba(236,72,153,0.32), inset 0 1px 0 rgba(255,255,255,0.25)",
-    },
-    whatsappButton: {
-      marginTop: "14px",
-      marginBottom: "12px",
-      background:
-        "linear-gradient(135deg, #34d399 0%, #22c55e 45%, #15803d 100%)",
-      color: "white",
-      border: "1px solid rgba(255,255,255,0.14)",
-      borderRadius: "16px",
-      padding: "13px 22px",
-      fontSize: "16px",
-      fontWeight: 950,
-      cursor: "pointer",
-      display: "block",
-      width: "100%",
-      boxShadow:
-        "0 18px 45px rgba(34,197,94,0.26), inset 0 1px 0 rgba(255,255,255,0.22)",
-    },
-    secondaryButton: {
-      marginTop: "10px",
-      background: "rgba(255,255,255,0.055)",
-      color: "#f4deea",
-      border: "1px solid rgba(255,255,255,0.12)",
-      borderRadius: "16px",
-      padding: "11px 18px",
-      fontSize: "14px",
-      fontWeight: 700,
-      cursor: "pointer",
-      width: isMobile ? "100%" : "auto",
-      boxShadow:
-        "inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 26px rgba(0,0,0,0.14)",
-    },
-    textButton: {
-      width: "100%",
-      marginTop: "12px",
-      background: "transparent",
-      border: "none",
-      color: "#f9a8d4",
-      fontSize: "14px",
-      fontWeight: 800,
-      cursor: "pointer",
-    },
-    approveButton: {
-      marginTop: "12px",
-      background: "linear-gradient(135deg, #34d399, #16a34a)",
-      color: "white",
-      border: "1px solid rgba(255,255,255,0.14)",
-      borderRadius: "16px",
-      padding: "12px 20px",
-      fontSize: "15px",
-      fontWeight: 950,
-      cursor: "pointer",
-    },
-    previewBox: {
-      border: "1px solid rgba(255,255,255,0.1)",
-      background:
-        "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))",
-      borderRadius: "22px",
-      padding: "18px",
-      marginBottom: "16px",
-      textAlign: "right" as const,
-      fontSize: "15px",
-      color: "#faeaf2",
-      boxShadow:
-        "0 22px 75px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.07)",
-    },
-    infoBox: {
-      border: "1px solid rgba(244,114,182,0.24)",
-      background:
-        "linear-gradient(135deg, rgba(244,114,182,0.1), rgba(168,85,247,0.055))",
-      borderRadius: "18px",
-      padding: "14px",
-      marginBottom: "16px",
-      textAlign: "right" as const,
-      color: "#f6d6e6",
-      fontSize: "14px",
-      lineHeight: "1.6",
-    },
-    stepBox: {
-      border: "1px solid rgba(244,114,182,0.24)",
-      background:
-        "linear-gradient(135deg, rgba(244,114,182,0.1), rgba(168,85,247,0.055))",
-      borderRadius: "20px",
-      padding: "16px",
-      marginBottom: "16px",
-      textAlign: "right" as const,
-      color: "#f6d6e6",
-      fontSize: "14px",
-      lineHeight: "1.45",
-    },
-    linkBox: {
-      border: "1px solid rgba(244,114,182,0.22)",
-      background:
-        "linear-gradient(135deg, rgba(244,114,182,0.08), rgba(168,85,247,0.045))",
-      borderRadius: "20px",
-      padding: "16px",
-      marginBottom: "16px",
-      textAlign: "right" as const,
-    },
-    linkLabel: {
-      margin: "0 0 8px",
-      color: "#f9a8d4",
-      fontWeight: 950,
-      fontSize: "14px",
-    },
-    linkText: {
-      direction: "ltr" as const,
-      textAlign: "left" as const,
-      background: "rgba(0,0,0,0.32)",
-      border: "1px solid rgba(255,255,255,0.12)",
-      borderRadius: "14px",
-      padding: "11px",
-      overflowX: "auto" as const,
-      whiteSpace: "nowrap" as const,
-      color: "#fff9fd",
-      fontSize: "13px",
-    },
-    successBox: {
-      border: "1px solid rgba(34,197,94,0.34)",
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.13), rgba(34,197,94,0.045))",
-      borderRadius: "22px",
-      padding: "20px",
-      marginBottom: "16px",
-      textAlign: "right" as const,
-      fontSize: "15px",
-      color: "#edfff2",
-      boxShadow: "0 18px 50px rgba(34,197,94,0.07)",
-    },
-    miniClaimBox: {
-      border: "1px solid rgba(34,197,94,0.3)",
-      background: "rgba(34,197,94,0.08)",
-      borderRadius: "16px",
-      padding: "11px 14px",
-      marginTop: "12px",
-      fontSize: "14px",
-    },
-    previewTitle: {
-      marginTop: 0,
-      fontSize: "22px",
-      color: "#fff9fd",
-      letterSpacing: "-0.35px",
-      fontWeight: 950,
-    },
-    statsGrid: {
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(155px, 1fr))",
-      gap: "12px",
-      marginTop: "20px",
-      marginBottom: "16px",
-    },
-    statCard: {
-      background:
-        "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))",
-      border: "1px solid rgba(255,255,255,0.1)",
-      borderRadius: "22px",
-      padding: "16px",
-      boxShadow:
-        "0 20px 60px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,255,255,0.07)",
-    },
-    statNumber: {
-      margin: 0,
-      fontSize: "28px",
-      fontWeight: 950,
-      color: "#ff8ac7",
-      textShadow: "0 10px 30px rgba(236,72,153,0.18)",
-    },
-    statLabel: {
-      margin: "6px 0 0",
-      color: "#d9c5d1",
-      fontSize: "13px",
-      fontWeight: 700,
-    },
-    dashboardTip: {
-      marginTop: "10px",
-      marginBottom: "16px",
-      padding: "13px 15px",
-      borderRadius: "17px",
-      border: "1px solid rgba(255,255,255,0.1)",
-      background:
-        "linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))",
-      color: "#ddc9d5",
-      fontSize: "14px",
-    },
-    actionRow: {
-      display: "flex",
-      flexDirection: isMobile ? ("column" as const) : ("row" as const),
-      flexWrap: "wrap" as const,
-      gap: "10px",
-      justifyContent: "center",
-      alignItems: "stretch",
-      marginTop: "8px",
-    },
-    historyList: {
-      display: "grid",
-      gap: "12px",
-    },
-    historyCard: {
-      border: "1px solid rgba(255,255,255,0.1)",
-      background:
-        "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))",
-      borderRadius: "22px",
-      padding: "18px",
-      textAlign: "right" as const,
-      color: "#faeaf2",
-      boxShadow:
-        "0 20px 65px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.07)",
-    },
-    historyTopRow: {
-      display: "flex",
-      flexDirection: isMobile ? ("column" as const) : ("row" as const),
-      gap: "10px",
-      justifyContent: "space-between",
-      alignItems: isMobile ? "stretch" : "flex-start",
-      flexWrap: "wrap" as const,
-    },
-    historyMeta: {
-      color: "#d5bfcb",
-      marginTop: "5px",
-      marginBottom: "8px",
-      fontSize: "13px",
-    },
-    statusPill: {
-      borderRadius: "999px",
-      padding: "7px 11px",
-      background: "rgba(255,255,255,0.065)",
-      border: "1px solid rgba(255,255,255,0.1)",
-      color: "#fce7f3",
-      fontSize: "12px",
-      fontWeight: 900,
-      alignSelf: isMobile ? "flex-start" : "auto",
-    },
-    mutedText: {
-      color: "#b39aa8",
-      fontSize: "14px",
-    },
-    buttonRow: {
-      display: "flex",
-      flexWrap: "wrap" as const,
-      gap: "8px",
-      marginTop: "14px",
-    },
-    smallButton: {
-      background: "linear-gradient(135deg, #ff7ac1, #db2777)",
-      color: "white",
-      border: "none",
-      borderRadius: "12px",
-      padding: "8px 13px",
-      fontSize: "13px",
-      fontWeight: 950,
-      cursor: "pointer",
-    },
-    smallSecondaryButton: {
-      background: "rgba(255,255,255,0.055)",
-      color: "#f0dce7",
-      border: "1px solid rgba(255,255,255,0.11)",
-      borderRadius: "12px",
-      padding: "8px 13px",
-      fontSize: "13px",
-      cursor: "pointer",
-    },
-    smallWhatsappButton: {
-      background: "linear-gradient(135deg, #34d399, #16a34a)",
-      color: "white",
-      border: "none",
-      borderRadius: "12px",
-      padding: "8px 13px",
-      fontSize: "13px",
-      fontWeight: 950,
-      cursor: "pointer",
-    },
-    smallApproveButton: {
-      background: "linear-gradient(135deg, #34d399, #15803d)",
-      color: "white",
-      border: "none",
-      borderRadius: "12px",
-      padding: "8px 13px",
-      fontSize: "13px",
-      fontWeight: 950,
-      cursor: "pointer",
-    },
-  };
 }
 
 export default App;
