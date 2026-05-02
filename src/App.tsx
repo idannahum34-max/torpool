@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "./lib/supabase";
 import type { Session, User } from "@supabase/supabase-js";
 
@@ -58,6 +58,9 @@ function App() {
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [showForm, setShowForm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showEditBusiness, setShowEditBusiness] = useState(false);
+  const [showEditSlot, setShowEditSlot] = useState(false);
+
   const [slot, setSlot] = useState<Slot | null>(null);
   const [showClientPage, setShowClientPage] = useState(false);
   const [claim, setClaim] = useState<Claim | null>(null);
@@ -207,7 +210,7 @@ function App() {
     setShowClientPage(view === "client");
   }
 
-  async function handleAuth(event: React.FormEvent<HTMLFormElement>) {
+  async function handleAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
 
@@ -264,6 +267,8 @@ function App() {
     setShowHistory(false);
     setShowClientPage(false);
     setShowForm(false);
+    setShowEditBusiness(false);
+    setShowEditSlot(false);
     setClientSubmitted(false);
     setApprovedCount(0);
     setApprovedValue(0);
@@ -272,7 +277,7 @@ function App() {
     window.history.pushState({}, "", "/");
   }
 
-  async function handleCreateBusiness(event: React.FormEvent<HTMLFormElement>) {
+  async function handleCreateBusiness(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!user) return;
@@ -305,12 +310,60 @@ function App() {
     setLoading(false);
   }
 
+  async function handleUpdateBusiness(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!business) return;
+
+    setLoading(true);
+
+    const form = new FormData(event.currentTarget);
+
+    const updatedBusiness = {
+      business_name: String(form.get("businessName") || ""),
+      phone: String(form.get("phone") || ""),
+    };
+
+    const { data, error } = await supabase
+      .from("businesses")
+      .update(updatedBusiness)
+      .eq("id", business.id)
+      .select()
+      .single();
+
+    if (error) {
+      alert("שגיאה בעדכון פרטי העסק");
+      console.error(error);
+      setLoading(false);
+      return;
+    }
+
+    await supabase
+      .from("slots")
+      .update({
+        business_name: updatedBusiness.business_name,
+        business_phone: updatedBusiness.phone,
+      })
+      .eq("business_id", business.id);
+
+    setBusiness(data);
+    setShowEditBusiness(false);
+
+    if (business) {
+      await loadDashboardStats(business.id);
+    }
+
+    setLoading(false);
+  }
+
   async function loadHistory() {
     if (!business) return;
 
     setLoading(true);
     setShowHistory(true);
     setShowForm(false);
+    setShowEditBusiness(false);
+    setShowEditSlot(false);
     setShowClientPage(false);
     setSlot(null);
     setClaim(null);
@@ -334,7 +387,7 @@ function App() {
     setLoading(false);
   }
 
-  async function handleCreateSlot(event: React.FormEvent<HTMLFormElement>) {
+  async function handleCreateSlot(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!business) {
@@ -383,6 +436,7 @@ function App() {
     setHistory([]);
     setShowHistory(false);
     setShowForm(false);
+    setShowEditSlot(false);
     setShowClientPage(false);
     setClientSubmitted(false);
 
@@ -392,10 +446,59 @@ function App() {
     setLoading(false);
   }
 
-  async function handleClaimSlot(event: React.FormEvent<HTMLFormElement>) {
+  async function handleUpdateSlot(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!slot || !business || slot.business_id !== business.id) {
+      alert("אין לך הרשאה לערוך את התור הזה");
+      return;
+    }
+
+    setLoading(true);
+
+    const form = new FormData(event.currentTarget);
+
+    const updatedSlot = {
+      service_name: String(form.get("serviceName") || ""),
+      slot_date: String(form.get("date") || ""),
+      slot_time: String(form.get("time") || ""),
+      price: String(form.get("price") || ""),
+      note: String(form.get("note") || ""),
+    };
+
+    const { data, error } = await supabase
+      .from("slots")
+      .update(updatedSlot)
+      .eq("id", slot.id)
+      .select()
+      .single();
+
+    if (error) {
+      alert("שגיאה בעדכון התור");
+      console.error(error);
+      setLoading(false);
+      return;
+    }
+
+    setSlot(data);
+    setShowEditSlot(false);
+
+    if (business) {
+      await loadDashboardStats(business.id);
+    }
+
+    setLoading(false);
+  }
+
+  async function handleClaimSlot(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!slot) return;
+
+    if (slot.status === "confirmed" || slot.status === "cancelled") {
+      alert("התור כבר לא זמין");
+      return;
+    }
 
     setLoading(true);
 
@@ -456,6 +559,11 @@ function App() {
       return;
     }
 
+    if (activeSlot.status === "cancelled") {
+      alert("אי אפשר לאשר תור שנסגר");
+      return;
+    }
+
     setLoading(true);
 
     const { error: claimError } = await supabase
@@ -483,6 +591,73 @@ function App() {
     }
 
     alert("התור אושר ✅");
+
+    if (business) {
+      await loadDashboardStats(business.id);
+    }
+
+    if (showHistory) {
+      await loadHistory();
+    } else {
+      await loadSlotFromUrl();
+    }
+
+    setLoading(false);
+  }
+
+  async function rejectClaim(claimToReject?: Claim, slotToReject?: Slot) {
+    const activeClaim = claimToReject || claim;
+    const activeSlot = slotToReject || slot;
+
+    if (!activeSlot || !activeClaim) return;
+
+    if (
+      !business ||
+      !activeSlot.business_id ||
+      activeSlot.business_id !== business.id
+    ) {
+      alert("אין לך הרשאה לדחות את הבקשה הזאת");
+      return;
+    }
+
+    if (activeSlot.status === "confirmed") {
+      alert("התור כבר אושר. אם צריך לבטל, השתמשי בסגירת תור ושליחת ביטול.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "לסמן את הלקוחה כדחויה ולפתוח את התור שוב לקבלת בקשות?"
+    );
+
+    if (!confirmed) return;
+
+    setLoading(true);
+
+    const { error: claimError } = await supabase
+      .from("claims")
+      .update({ status: "rejected" })
+      .eq("id", activeClaim.id);
+
+    if (claimError) {
+      alert("שגיאה בדחיית הבקשה");
+      console.error(claimError);
+      setLoading(false);
+      return;
+    }
+
+    const { error: slotError } = await supabase
+      .from("slots")
+      .update({ status: "open" })
+      .eq("id", activeSlot.id);
+
+    if (slotError) {
+      alert("שגיאה בפתיחת התור מחדש");
+      console.error(slotError);
+      setLoading(false);
+      return;
+    }
+
+    alert("הבקשה סומנה כדחויה והתור נפתח שוב");
 
     if (business) {
       await loadDashboardStats(business.id);
@@ -617,6 +792,7 @@ function App() {
     if (status === "confirmed") return "התור אושר";
     if (status === "approved") return "אושר";
     if (status === "pending") return "ממתין לאישור";
+    if (status === "rejected") return "נדחתה";
     if (status === "cancelled") return "התור נסגר";
     return status;
   }
@@ -627,6 +803,7 @@ function App() {
     if (status === "confirmed") return "✅";
     if (status === "approved") return "✅";
     if (status === "pending") return "🟡";
+    if (status === "rejected") return "⚪";
     if (status === "cancelled") return "🔴";
     return "•";
   }
@@ -678,6 +855,32 @@ ${activeSlot.service_name}
 ${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
 
 נתראה 🙏`;
+
+    return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
+  }
+
+  function buildRejectionWhatsappLink(
+    claimToSend?: Claim | null,
+    slotToSend?: Slot | null
+  ) {
+    const activeClaim = claimToSend || claim;
+    const activeSlot = slotToSend || slot;
+
+    if (!activeClaim || !activeSlot) return "";
+
+    const targetPhone = normalizePhoneForWhatsapp(activeClaim.client_phone);
+
+    if (!targetPhone) return "";
+
+    const message = `היי ${activeClaim.client_name} 🤍
+
+תודה שהשארת פרטים.
+התור הזה כבר לא מתאים / נתפס, אבל אעדכן אותך כשיתפנה תור חדש 🙏
+
+פרטי התור:
+${activeSlot.service_name}
+תאריך: ${activeSlot.slot_date}
+שעה: ${activeSlot.slot_time}`;
 
     return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
   }
@@ -765,6 +968,8 @@ ${link}
     setClaim(latestClaim);
     setShowHistory(false);
     setShowForm(false);
+    setShowEditBusiness(false);
+    setShowEditSlot(false);
     setShowClientPage(false);
     setClientSubmitted(false);
 
@@ -778,6 +983,8 @@ ${link}
     setShowHistory(false);
     setShowClientPage(false);
     setShowForm(false);
+    setShowEditBusiness(false);
+    setShowEditSlot(false);
     setClientSubmitted(false);
     window.history.pushState({}, "", "/");
 
@@ -788,6 +995,7 @@ ${link}
 
   const clientWhatsappLink = buildClientToBusinessWhatsappLink();
   const approvalWhatsappLink = buildApprovalWhatsappLink();
+  const rejectionWhatsappLink = buildRejectionWhatsappLink();
   const cancellationWhatsappLink = buildCancellationWhatsappLink();
 
   if (loading) {
@@ -893,16 +1101,16 @@ ${link}
 
           {!slot && !session && (
             <div className="landing">
-             <div className="hero">
-  <div className="brand-logo-card">
-    <img
-      className="brand-logo-image"
-      src="/torpool-logo.png"
-      alt="תורפול - תור מתבטל? תורפול ממלאה."
-    />
-  </div>
+              <div className="hero">
+                <div className="brand-logo-card">
+                  <img
+                    className="brand-logo-image"
+                    src="/torpool-logo.png"
+                    alt="תורפול - תור מתבטל? תורפול ממלאה."
+                  />
+                </div>
 
-  <div className="kicker">לינק אחד. הודעת WhatsApp אחת. תור שמתמלא.</div>
+                <div className="kicker">לינק אחד. הודעת WhatsApp אחת. תור שמתמלא.</div>
 
                 <h1 className="hero-title">
                   התפנה תור? מלאי אותו בלי לרדוף אחרי לקוחות.
@@ -1014,8 +1222,43 @@ ${link}
             </div>
           )}
 
+          {showEditBusiness && business && (
+            <div className="narrow">
+              <h1 className="page-title">עריכת פרטי העסק</h1>
+
+              <form onSubmit={handleUpdateBusiness} className="form">
+                <label>
+                  שם העסק
+                  <input
+                    name="businessName"
+                    defaultValue={business.business_name}
+                    required
+                  />
+                </label>
+
+                <label>
+                  טלפון WhatsApp של העסק
+                  <input name="phone" defaultValue={business.phone || ""} required />
+                </label>
+
+                <button className="btn btn-primary" type="submit">
+                  שמרי שינויים
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowEditBusiness(false)}
+                >
+                  ביטול
+                </button>
+              </form>
+            </div>
+          )}
+
           {session &&
             business &&
+            !showEditBusiness &&
             !showForm &&
             !slot &&
             !showClientPage &&
@@ -1062,6 +1305,13 @@ ${link}
 
                   <button className="btn btn-secondary" onClick={loadHistory}>
                     ראי תורים שהתפנו
+                  </button>
+
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setShowEditBusiness(true)}
+                  >
+                    עריכת פרטי העסק
                   </button>
                 </div>
               </div>
@@ -1150,6 +1400,9 @@ ${link}
                     const approvalLink = latestClaim
                       ? buildApprovalWhatsappLink(latestClaim, item)
                       : "";
+                    const rejectionLink = latestClaim
+                      ? buildRejectionWhatsappLink(latestClaim, item)
+                      : "";
                     const cancellationLink = latestClaim
                       ? buildCancellationWhatsappLink(latestClaim, item)
                       : "";
@@ -1205,19 +1458,52 @@ ${link}
                             WhatsApp
                           </button>
 
-                          {latestClaim && latestClaim.status !== "approved" && (
-                            <button
-                              className="small-btn approve-small"
-                              onClick={() => approveClaim(latestClaim, item)}
-                            >
-                              אשרי
-                            </button>
-                          )}
+                          {latestClaim &&
+                            latestClaim.status !== "approved" &&
+                            item.status !== "confirmed" &&
+                            item.status !== "cancelled" && (
+                              <button
+                                className="small-btn approve-small"
+                                onClick={() => approveClaim(latestClaim, item)}
+                              >
+                                אשרי
+                              </button>
+                            )}
+
+                          {latestClaim &&
+                            latestClaim.status !== "approved" &&
+                            latestClaim.status !== "rejected" &&
+                            item.status !== "confirmed" &&
+                            item.status !== "cancelled" &&
+                            rejectionLink && (
+                              <a
+                                className="small-btn"
+                                href={rejectionLink}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                שלחי דחייה
+                              </a>
+                            )}
+
+                          {latestClaim &&
+                            latestClaim.status !== "approved" &&
+                            latestClaim.status !== "rejected" &&
+                            item.status !== "confirmed" &&
+                            item.status !== "cancelled" && (
+                              <button
+                                className="small-btn"
+                                onClick={() => rejectClaim(latestClaim, item)}
+                              >
+                                סמני כדחויה
+                              </button>
+                            )}
 
                           {latestClaim &&
                             (latestClaim.status === "approved" ||
                               item.status === "confirmed") &&
-                            approvalLink && (
+                            approvalLink &&
+                            item.status !== "cancelled" && (
                               <a
                                 className="small-btn whatsapp-small"
                                 href={approvalLink}
@@ -1279,17 +1565,60 @@ ${link}
                 <p>3. מי שתשאיר פרטים תופיע כאן לאישור</p>
               </div>
 
-              <div className="card soft-card">
-                <h2>התפנה תור אצל {slot.business_name}</h2>
-                <p>טיפול: {slot.service_name}</p>
-                <p>תאריך: {slot.slot_date}</p>
-                <p>שעה: {slot.slot_time}</p>
-                {slot.price && <p>מחיר: {slot.price} ₪</p>}
-                {slot.note && <p>הערה: {slot.note}</p>}
-                <p>
-                  {statusIcon(slot.status)} {statusLabel(slot.status)}
-                </p>
-              </div>
+              {showEditSlot ? (
+                <form onSubmit={handleUpdateSlot} className="form">
+                  <label>
+                    שם הטיפול
+                    <input name="serviceName" defaultValue={slot.service_name} required />
+                  </label>
+
+                  <div className="two-fields">
+                    <label>
+                      תאריך
+                      <input name="date" type="date" defaultValue={slot.slot_date} required />
+                    </label>
+
+                    <label>
+                      שעה
+                      <input name="time" type="time" defaultValue={slot.slot_time} required />
+                    </label>
+                  </div>
+
+                  <label>
+                    מחיר
+                    <input name="price" type="number" defaultValue={slot.price || ""} />
+                  </label>
+
+                  <label>
+                    הערה קצרה
+                    <textarea name="note" defaultValue={slot.note || ""} />
+                  </label>
+
+                  <button className="btn btn-primary" type="submit">
+                    שמרי שינויים בתור
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowEditSlot(false)}
+                  >
+                    ביטול
+                  </button>
+                </form>
+              ) : (
+                <div className="card soft-card">
+                  <h2>התפנה תור אצל {slot.business_name}</h2>
+                  <p>טיפול: {slot.service_name}</p>
+                  <p>תאריך: {slot.slot_date}</p>
+                  <p>שעה: {slot.slot_time}</p>
+                  {slot.price && <p>מחיר: {slot.price} ₪</p>}
+                  {slot.note && <p>הערה: {slot.note}</p>}
+                  <p>
+                    {statusIcon(slot.status)} {statusLabel(slot.status)}
+                  </p>
+                </div>
+              )}
 
               {claim && (
                 <div className="success-card">
@@ -1300,11 +1629,38 @@ ${link}
                     סטטוס: {statusIcon(claim.status)} {statusLabel(claim.status)}
                   </p>
 
-                  {claim.status !== "approved" && slot.status !== "cancelled" && (
-                    <button className="btn btn-approve" onClick={() => approveClaim()}>
-                      אשרי את התור
-                    </button>
-                  )}
+                  {claim.status !== "approved" &&
+                    claim.status !== "rejected" &&
+                    slot.status !== "confirmed" &&
+                    slot.status !== "cancelled" && (
+                      <button className="btn btn-approve" onClick={() => approveClaim()}>
+                        אשרי את התור
+                      </button>
+                    )}
+
+                  {claim.status !== "approved" &&
+                    claim.status !== "rejected" &&
+                    slot.status !== "confirmed" &&
+                    slot.status !== "cancelled" &&
+                    rejectionWhatsappLink && (
+                      <a
+                        className="btn btn-secondary"
+                        href={rejectionWhatsappLink}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        שלחי דחייה ללקוחה ב־WhatsApp
+                      </a>
+                    )}
+
+                  {claim.status !== "approved" &&
+                    claim.status !== "rejected" &&
+                    slot.status !== "confirmed" &&
+                    slot.status !== "cancelled" && (
+                      <button className="btn btn-secondary" onClick={() => rejectClaim()}>
+                        סמני כדחויה ופתחי את התור שוב
+                      </button>
+                    )}
 
                   {(claim.status === "approved" || slot.status === "confirmed") &&
                     approvalWhatsappLink &&
@@ -1334,6 +1690,13 @@ ${link}
 
               <button className="btn btn-whatsapp" onClick={() => copyWhatsappMessage()}>
                 העתיקי הודעת WhatsApp לרשימת תפוצה
+              </button>
+
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowEditSlot(!showEditSlot)}
+              >
+                {showEditSlot ? "סגרי עריכה" : "ערכי את התור"}
               </button>
 
               {slot.status !== "cancelled" && (
