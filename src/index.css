@@ -717,3 +717,96 @@ textarea {
   background: linear-gradient(135deg, #fb7185, #be123c);
   border: none;
 }
+.brand-logo-card {
+  position: relative;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto 22px;
+  padding: 10px;
+  border-radius: 28px;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 240, 248, 0.84)),
+    radial-gradient(circle at 20% 10%, rgba(236, 72, 153, 0.22), transparent 35%),
+    radial-gradient(circle at 85% 80%, rgba(168, 85, 247, 0.14), transparent 38%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 24px 80px rgba(236, 72, 153, 0.22),
+    0 14px 45px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.brand-logo-card::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(
+    120deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.55) 45%,
+    transparent 60%
+  );
+  transform: translateX(-60%) rotate(12deg);
+  animation: logoShine 5.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.brand-logo-card::after {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 22px;
+  border: 1px solid rgba(236, 72, 153, 0.13);
+  pointer-events: none;
+}
+
+.brand-logo-image {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 20px;
+  object-fit: contain;
+}
+
+@keyframes logoShine {
+  0% {
+    transform: translateX(-70%) rotate(12deg);
+    opacity: 0;
+  }
+
+  18% {
+    opacity: 1;
+  }
+
+  42% {
+    transform: translateX(70%) rotate(12deg);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateX(70%) rotate(12deg);
+    opacity: 0;
+  }
+}
+
+@media (min-width: 760px) {
+  .brand-logo-card {
+    margin: 0 0 24px auto;
+    max-width: 560px;
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand-logo-card {
+    border-radius: 22px;
+    padding: 7px;
+    margin-bottom: 18px;
+  }
+
+  .brand-logo-image {
+    border-radius: 16px;
+  }
+}

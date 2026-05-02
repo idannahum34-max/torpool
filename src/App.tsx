@@ -893,8 +893,16 @@ ${link}
 
           {!slot && !session && (
             <div className="landing">
-              <div className="hero">
-                <div className="kicker">לינק אחד. הודעת WhatsApp אחת. תור שמתמלא.</div>
+             <div className="hero">
+  <div className="brand-logo-card">
+    <img
+      className="brand-logo-image"
+      src="/torpool-logo.png"
+      alt="תורפול - תור מתבטל? תורפול ממלאה."
+    />
+  </div>
+
+  <div className="kicker">לינק אחד. הודעת WhatsApp אחת. תור שמתמלא.</div>
 
                 <h1 className="hero-title">
                   התפנה תור? מלאי אותו בלי לרדוף אחרי לקוחות.
