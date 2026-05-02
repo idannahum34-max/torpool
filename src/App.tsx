@@ -80,6 +80,17 @@ function App() {
     session && business && slot && slot.business_id === business.id
   );
 
+  const isLandingPage = !slot && !session;
+
+  const isDashboardPage =
+    session &&
+    business &&
+    !showEditBusiness &&
+    !showForm &&
+    !slot &&
+    !showClientPage &&
+    !showHistory;
+
   useEffect(() => {
     startApp();
 
@@ -156,7 +167,6 @@ function App() {
     }
 
     const slots = data || [];
-
     const approvedSlots = slots.filter((item) => item.status === "confirmed");
     const pendingSlots = slots.filter((item) => item.status === "claimed");
 
@@ -201,12 +211,7 @@ function App() {
       console.error(claimsError);
     }
 
-    if (claimsData && claimsData.length > 0) {
-      setClaim(claimsData[0]);
-    } else {
-      setClaim(null);
-    }
-
+    setClaim(claimsData && claimsData.length > 0 ? claimsData[0] : null);
     setShowClientPage(view === "client");
   }
 
@@ -349,10 +354,7 @@ function App() {
     setBusiness(data);
     setShowEditBusiness(false);
 
-    if (business) {
-      await loadDashboardStats(business.id);
-    }
-
+    await loadDashboardStats(business.id);
     setLoading(false);
   }
 
@@ -396,9 +398,7 @@ function App() {
     }
 
     if (!business.phone) {
-      alert(
-        "חסר טלפון עסק. צרי עסק עם מספר טלפון כדי שלקוחות יוכלו לשלוח WhatsApp."
-      );
+      alert("חסר טלפון עסק. צרי עסק עם מספר טלפון כדי שלקוחות יוכלו לשלוח WhatsApp.");
       return;
     }
 
@@ -483,10 +483,7 @@ function App() {
     setSlot(data);
     setShowEditSlot(false);
 
-    if (business) {
-      await loadDashboardStats(business.id);
-    }
-
+    await loadDashboardStats(business.id);
     setLoading(false);
   }
 
@@ -550,11 +547,7 @@ function App() {
 
     if (!activeSlot || !activeClaim) return;
 
-    if (
-      !business ||
-      !activeSlot.business_id ||
-      activeSlot.business_id !== business.id
-    ) {
+    if (!business || !activeSlot.business_id || activeSlot.business_id !== business.id) {
       alert("אין לך הרשאה לאשר את התור הזה");
       return;
     }
@@ -592,9 +585,7 @@ function App() {
 
     alert("התור אושר ✅");
 
-    if (business) {
-      await loadDashboardStats(business.id);
-    }
+    await loadDashboardStats(business.id);
 
     if (showHistory) {
       await loadHistory();
@@ -611,11 +602,7 @@ function App() {
 
     if (!activeSlot || !activeClaim) return;
 
-    if (
-      !business ||
-      !activeSlot.business_id ||
-      activeSlot.business_id !== business.id
-    ) {
+    if (!business || !activeSlot.business_id || activeSlot.business_id !== business.id) {
       alert("אין לך הרשאה לדחות את הבקשה הזאת");
       return;
     }
@@ -625,10 +612,7 @@ function App() {
       return;
     }
 
-    const confirmed = window.confirm(
-      "לסמן את הלקוחה כדחויה ולפתוח את התור שוב לקבלת בקשות?"
-    );
-
+    const confirmed = window.confirm("לסמן את הלקוחה כדחויה ולפתוח את התור שוב לקבלת בקשות?");
     if (!confirmed) return;
 
     setLoading(true);
@@ -659,9 +643,7 @@ function App() {
 
     alert("הבקשה סומנה כדחויה והתור נפתח שוב");
 
-    if (business) {
-      await loadDashboardStats(business.id);
-    }
+    await loadDashboardStats(business.id);
 
     if (showHistory) {
       await loadHistory();
@@ -677,11 +659,7 @@ function App() {
 
     if (!activeSlot) return;
 
-    if (
-      !business ||
-      !activeSlot.business_id ||
-      activeSlot.business_id !== business.id
-    ) {
+    if (!business || !activeSlot.business_id || activeSlot.business_id !== business.id) {
       alert("אין לך הרשאה לסגור את התור הזה");
       return;
     }
@@ -708,9 +686,7 @@ function App() {
 
     alert("התור נסגר");
 
-    if (business) {
-      await loadDashboardStats(business.id);
-    }
+    await loadDashboardStats(business.id);
 
     if (showHistory) {
       await loadHistory();
@@ -726,11 +702,7 @@ function App() {
 
     if (!activeSlot) return;
 
-    if (
-      !business ||
-      !activeSlot.business_id ||
-      activeSlot.business_id !== business.id
-    ) {
+    if (!business || !activeSlot.business_id || activeSlot.business_id !== business.id) {
       alert("אין לך הרשאה למחוק את התור הזה");
       return;
     }
@@ -773,9 +745,7 @@ function App() {
     setClaim(null);
     setClientSubmitted(false);
 
-    if (business) {
-      await loadDashboardStats(business.id);
-    }
+    await loadDashboardStats(business.id);
 
     if (showHistory) {
       await loadHistory();
@@ -812,7 +782,6 @@ function App() {
     if (!slot || !claim) return "";
 
     const targetPhone = normalizePhoneForWhatsapp(slot.business_phone);
-
     if (!targetPhone) return "";
 
     const message = `היי, ראיתי שהתפנה תור דרך תורפול 💌
@@ -831,17 +800,13 @@ ${slot.price ? `${slot.price} ₪` : ""}
     return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
   }
 
-  function buildApprovalWhatsappLink(
-    claimToSend?: Claim | null,
-    slotToSend?: Slot | null
-  ) {
+  function buildApprovalWhatsappLink(claimToSend?: Claim | null, slotToSend?: Slot | null) {
     const activeClaim = claimToSend || claim;
     const activeSlot = slotToSend || slot;
 
     if (!activeClaim || !activeSlot) return "";
 
     const targetPhone = normalizePhoneForWhatsapp(activeClaim.client_phone);
-
     if (!targetPhone) return "";
 
     const message = `היי ${activeClaim.client_name} 🤍
@@ -859,17 +824,13 @@ ${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
     return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
   }
 
-  function buildRejectionWhatsappLink(
-    claimToSend?: Claim | null,
-    slotToSend?: Slot | null
-  ) {
+  function buildRejectionWhatsappLink(claimToSend?: Claim | null, slotToSend?: Slot | null) {
     const activeClaim = claimToSend || claim;
     const activeSlot = slotToSend || slot;
 
     if (!activeClaim || !activeSlot) return "";
 
     const targetPhone = normalizePhoneForWhatsapp(activeClaim.client_phone);
-
     if (!targetPhone) return "";
 
     const message = `היי ${activeClaim.client_name} 🤍
@@ -885,17 +846,13 @@ ${activeSlot.service_name}
     return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
   }
 
-  function buildCancellationWhatsappLink(
-    claimToSend?: Claim | null,
-    slotToSend?: Slot | null
-  ) {
+  function buildCancellationWhatsappLink(claimToSend?: Claim | null, slotToSend?: Slot | null) {
     const activeClaim = claimToSend || claim;
     const activeSlot = slotToSend || slot;
 
     if (!activeClaim || !activeSlot) return "";
 
     const targetPhone = normalizePhoneForWhatsapp(activeClaim.client_phone);
-
     if (!targetPhone) return "";
 
     const message = `היי ${activeClaim.client_name} 🤍
@@ -917,11 +874,7 @@ ${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
     const targetSlot = slotToCopy || slot;
     if (!targetSlot) return;
 
-    if (
-      business &&
-      targetSlot.business_id &&
-      targetSlot.business_id !== business.id
-    ) {
+    if (business && targetSlot.business_id && targetSlot.business_id !== business.id) {
       alert("אין לך הרשאה להעתיק לינק לתור הזה");
       return;
     }
@@ -935,11 +888,7 @@ ${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
     const targetSlot = slotToCopy || slot;
     if (!targetSlot) return;
 
-    if (
-      business &&
-      targetSlot.business_id &&
-      targetSlot.business_id !== business.id
-    ) {
+    if (business && targetSlot.business_id && targetSlot.business_id !== business.id) {
       alert("אין לך הרשאה להעתיק הודעה לתור הזה");
       return;
     }
@@ -993,6 +942,60 @@ ${link}
     }
   }
 
+  function screenLabel() {
+    if (isLandingPage) return "מילוי תורים שהתפנו";
+    if (showHistory) return "ניהול תורים";
+    if (showEditBusiness) return "הגדרות עסק";
+    if (showForm) return "יצירת תור שהתפנה";
+    if (showEditSlot) return "עריכת תור";
+    if (slot && showClientPage) return "בקשת תור";
+    if (slot && isOwnerView) return "ניהול תור";
+    if (isDashboardPage) return "דשבורד";
+    return "תורפול";
+  }
+
+  function AppTopBar() {
+    return (
+      <header className="app-topbar">
+        <button
+          type="button"
+          className="brand-mark"
+          onClick={() => {
+            if (session && business) {
+              resetToDashboard();
+            } else {
+              window.history.pushState({}, "", "/");
+            }
+          }}
+        >
+          <span className="brand-icon">✓</span>
+          <span>
+            <strong>תורפול</strong>
+            <small>{screenLabel()}</small>
+          </span>
+        </button>
+
+        <div className="topbar-actions">
+          {!session && (
+            <span className="pilot-pill">פיילוט לעסקים ראשונים · 49 ₪</span>
+          )}
+
+          {session && business && !isDashboardPage && (
+            <button className="topbar-btn" onClick={resetToDashboard}>
+              דשבורד
+            </button>
+          )}
+
+          {session && (
+            <button className="topbar-btn" onClick={handleLogout}>
+              התנתקות
+            </button>
+          )}
+        </div>
+      </header>
+    );
+  }
+
   const clientWhatsappLink = buildClientToBusinessWhatsappLink();
   const approvalWhatsappLink = buildApprovalWhatsappLink();
   const rejectionWhatsappLink = buildRejectionWhatsappLink();
@@ -1007,7 +1010,6 @@ ${link}
 
         <section className="shell shell-narrow">
           <div className="panel">
-            <p className="badge">תורפול</p>
             <h1 className="page-title">טוען...</h1>
           </div>
         </section>
@@ -1023,7 +1025,7 @@ ${link}
 
       <section className="shell">
         <div className="panel">
-          <p className="badge">תורפול · ממלאת תורים שהתפנו דרך WhatsApp</p>
+          <AppTopBar />
 
           {slot && showClientPage && (
             <div className="narrow">
@@ -1137,6 +1139,38 @@ ${link}
                     <p>מקבלת בקשות ומאשרת רק את מי שמתאימה.</p>
                   </div>
                 </div>
+
+                <div className="landing-proof">
+                  <div>
+                    <strong>49 ₪ לחודש</strong>
+                    <span>פיילוט לעסקים ראשונים · בלי התחייבות</span>
+                  </div>
+
+                  <div>
+                    <strong>תור אחד שהתמלא</strong>
+                    <span>וכבר החזרת את העלות של המערכת</span>
+                  </div>
+                </div>
+
+                <div className="how-it-works">
+                  <div className="step-card">
+                    <span>1</span>
+                    <strong>יוצרת תור שהתפנה</strong>
+                    <p>טיפול, תאריך, שעה ומחיר.</p>
+                  </div>
+
+                  <div className="step-card">
+                    <span>2</span>
+                    <strong>שולחת ב־WhatsApp</strong>
+                    <p>הודעה מוכנה לרשימת הלקוחות שלך.</p>
+                  </div>
+
+                  <div className="step-card">
+                    <span>3</span>
+                    <strong>מאשרת לקוחה</strong>
+                    <p>מקבלת בקשות ומאשרת רק את מי שמתאימה.</p>
+                  </div>
+                </div>
               </div>
 
               <div className="auth-card">
@@ -1215,10 +1249,6 @@ ${link}
                   צרי את העסק
                 </button>
               </form>
-
-              <button className="btn btn-secondary" onClick={handleLogout}>
-                התנתקות
-              </button>
             </div>
           )}
 
@@ -1256,66 +1286,56 @@ ${link}
             </div>
           )}
 
-          {session &&
-            business &&
-            !showEditBusiness &&
-            !showForm &&
-            !slot &&
-            !showClientPage &&
-            !showHistory && (
-              <div className="dashboard">
-                <div className="dashboard-header">
-                  <div>
-                    <p className="overline">הדשבורד שלך</p>
-                    <h1>{business.business_name}</h1>
-                    <p>מה התפנה לך היום?</p>
-                  </div>
-
-                  <button className="btn btn-secondary" onClick={handleLogout}>
-                    התנתקות
-                  </button>
-                </div>
-
-                <div className="stats">
-                  <div className="stat-card">
-                    <strong>{approvedCount}</strong>
-                    <span>תורים שאושרו</span>
-                  </div>
-
-                  <div className="stat-card">
-                    <strong>{approvedValue} ₪</strong>
-                    <span>חזרו ליומן</span>
-                  </div>
-
-                  <div className="stat-card">
-                    <strong>{pendingCount}</strong>
-                    <span>מחכים לאישור</span>
-                  </div>
-                </div>
-
-                <div className="notice">
-                  <strong>הזרימה:</strong>{" "}
-                  יוצרת תור שהתפנה → שולחת ב־WhatsApp → מאשרת לקוחה.
-                </div>
-
-                <div className="actions">
-                  <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-                    התפנה לי תור
-                  </button>
-
-                  <button className="btn btn-secondary" onClick={loadHistory}>
-                    ראי תורים שהתפנו
-                  </button>
-
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => setShowEditBusiness(true)}
-                  >
-                    עריכת פרטי העסק
-                  </button>
+          {isDashboardPage && (
+            <div className="dashboard">
+              <div className="dashboard-header">
+                <div>
+                  <p className="overline">הדשבורד שלך</p>
+                  <h1>{business.business_name}</h1>
+                  <p>כל חור ביומן הוא כסף שאפשר להחזיר.</p>
                 </div>
               </div>
-            )}
+
+              <div className="stats">
+                <div className="stat-card">
+                  <strong>{approvedCount}</strong>
+                  <span>תורים שאושרו</span>
+                </div>
+
+                <div className="stat-card">
+                  <strong>{approvedValue} ₪</strong>
+                  <span>חזרו ליומן</span>
+                </div>
+
+                <div className="stat-card">
+                  <strong>{pendingCount}</strong>
+                  <span>מחכים לאישור</span>
+                </div>
+              </div>
+
+              <div className="notice">
+                <strong>הזרימה שלך:</strong>{" "}
+                תור התבטל → שולחת לינק → מקבלת בקשות → מאשרת לקוחה.
+              </div>
+
+              <div className="actions">
+                <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+                  התפנה לי תור
+                </button>
+
+                <button className="btn btn-secondary" onClick={loadHistory}>
+                  ראי תורים שהתפנו
+                </button>
+
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setShowEditBusiness(true)}
+                >
+                  עריכת פרטי העסק
+                </button>
+              </div>
+            </div>
+          )}
 
           {showForm && business && (
             <div className="narrow">
@@ -1381,17 +1401,19 @@ ${link}
                 <div>
                   <p className="overline">ניהול תורים</p>
                   <h1>תורים שהתפנו</h1>
+                  <p>כל התורים שיצרת, כולל בקשות, אישורים, דחיות וביטולים.</p>
                 </div>
-
-                <button className="btn btn-secondary" onClick={resetToDashboard}>
-                  חזרה לדשבורד
-                </button>
               </div>
 
               {history.length === 0 ? (
-                <div className="card soft-card">
+                <div className="empty-state">
+                  <div className="empty-icon">📅</div>
                   <h2>אין עדיין תורים שהתפנו</h2>
-                  <p>כשתצרי תור ראשון, הוא יופיע כאן.</p>
+                  <p>כשתצרי תור ראשון, הוא יופיע כאן עם כל הבקשות, האישורים והביטולים.</p>
+
+                  <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+                    צרי תור שהתפנה
+                  </button>
                 </div>
               ) : (
                 <div className="history-list">
