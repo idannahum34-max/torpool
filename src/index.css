@@ -705,3 +705,15 @@ textarea {
     align-items: flex-start;
   }
 }
+.btn-danger {
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(135deg, #fb7185, #be123c);
+}
+
+.delete-small {
+  color: white;
+  font-weight: 950;
+  background: linear-gradient(135deg, #fb7185, #be123c);
+  border: none;
+}

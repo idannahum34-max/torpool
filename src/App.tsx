@@ -497,12 +497,127 @@ function App() {
     setLoading(false);
   }
 
+  async function closeSlot(slotToClose?: Slot) {
+    const activeSlot = slotToClose || slot;
+
+    if (!activeSlot) return;
+
+    if (
+      !business ||
+      !activeSlot.business_id ||
+      activeSlot.business_id !== business.id
+    ) {
+      alert("אין לך הרשאה לסגור את התור הזה");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "לסגור את התור? הוא יישאר בהיסטוריה אבל לקוחות לא יוכלו לתפוס אותו."
+    );
+
+    if (!confirmed) return;
+
+    setLoading(true);
+
+    const { error } = await supabase
+      .from("slots")
+      .update({ status: "cancelled" })
+      .eq("id", activeSlot.id);
+
+    if (error) {
+      alert("שגיאה בסגירת התור");
+      console.error(error);
+      setLoading(false);
+      return;
+    }
+
+    alert("התור נסגר");
+
+    if (business) {
+      await loadDashboardStats(business.id);
+    }
+
+    if (showHistory) {
+      await loadHistory();
+    } else {
+      await loadSlotFromUrl();
+    }
+
+    setLoading(false);
+  }
+
+  async function deleteSlot(slotToDelete?: Slot) {
+    const activeSlot = slotToDelete || slot;
+
+    if (!activeSlot) return;
+
+    if (
+      !business ||
+      !activeSlot.business_id ||
+      activeSlot.business_id !== business.id
+    ) {
+      alert("אין לך הרשאה למחוק את התור הזה");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "למחוק את התור לגמרי? הפעולה תמחק גם את כל הבקשות ולא ניתן לשחזר."
+    );
+
+    if (!confirmed) return;
+
+    setLoading(true);
+
+    const { error: claimsError } = await supabase
+      .from("claims")
+      .delete()
+      .eq("slot_id", activeSlot.id);
+
+    if (claimsError) {
+      alert("שגיאה במחיקת הבקשות של התור");
+      console.error(claimsError);
+      setLoading(false);
+      return;
+    }
+
+    const { error: slotError } = await supabase
+      .from("slots")
+      .delete()
+      .eq("id", activeSlot.id);
+
+    if (slotError) {
+      alert("שגיאה במחיקת התור");
+      console.error(slotError);
+      setLoading(false);
+      return;
+    }
+
+    alert("התור נמחק");
+
+    setSlot(null);
+    setClaim(null);
+    setClientSubmitted(false);
+
+    if (business) {
+      await loadDashboardStats(business.id);
+    }
+
+    if (showHistory) {
+      await loadHistory();
+    } else {
+      resetToDashboard();
+    }
+
+    setLoading(false);
+  }
+
   function statusLabel(status: string) {
     if (status === "open") return "פתוח לשליחה";
     if (status === "claimed") return "יש בקשה לאישור";
     if (status === "confirmed") return "התור אושר";
     if (status === "approved") return "אושר";
     if (status === "pending") return "ממתין לאישור";
+    if (status === "cancelled") return "התור נסגר";
     return status;
   }
 
@@ -512,6 +627,7 @@ function App() {
     if (status === "confirmed") return "✅";
     if (status === "approved") return "✅";
     if (status === "pending") return "🟡";
+    if (status === "cancelled") return "🔴";
     return "•";
   }
 
@@ -562,6 +678,34 @@ ${activeSlot.service_name}
 ${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
 
 נתראה 🙏`;
+
+    return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
+  }
+
+  function buildCancellationWhatsappLink(
+    claimToSend?: Claim | null,
+    slotToSend?: Slot | null
+  ) {
+    const activeClaim = claimToSend || claim;
+    const activeSlot = slotToSend || slot;
+
+    if (!activeClaim || !activeSlot) return "";
+
+    const targetPhone = normalizePhoneForWhatsapp(activeClaim.client_phone);
+
+    if (!targetPhone) return "";
+
+    const message = `היי ${activeClaim.client_name} 🤍
+
+לצערי התור שאושר/התבקשת אליו התבטל.
+
+פרטי התור:
+${activeSlot.service_name}
+תאריך: ${activeSlot.slot_date}
+שעה: ${activeSlot.slot_time}
+${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
+
+אעדכן אותך כשיתפנה תור חדש 🙏`;
 
     return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
   }
@@ -644,6 +788,7 @@ ${link}
 
   const clientWhatsappLink = buildClientToBusinessWhatsappLink();
   const approvalWhatsappLink = buildApprovalWhatsappLink();
+  const cancellationWhatsappLink = buildCancellationWhatsappLink();
 
   if (loading) {
     return (
@@ -712,7 +857,12 @@ ${link}
                 </div>
               )}
 
-              {clientSubmitted ? null : slot.status === "confirmed" ? (
+              {clientSubmitted ? null : slot.status === "cancelled" ? (
+                <div className="success-card">
+                  <h2>התור כבר לא זמין 🔴</h2>
+                  <p>אפשר לחכות לתור הבא שיתפנה.</p>
+                </div>
+              ) : slot.status === "confirmed" ? (
                 <div className="success-card">
                   <h2>התור כבר נתפס ואושר ✅</h2>
                   <p>אפשר לחכות לתור הבא שיתפנה.</p>
@@ -992,6 +1142,9 @@ ${link}
                     const approvalLink = latestClaim
                       ? buildApprovalWhatsappLink(latestClaim, item)
                       : "";
+                    const cancellationLink = latestClaim
+                      ? buildCancellationWhatsappLink(latestClaim, item)
+                      : "";
 
                     return (
                       <div key={item.id} className="history-card">
@@ -1066,6 +1219,33 @@ ${link}
                                 שלחי אישור
                               </a>
                             )}
+
+                          {item.status !== "cancelled" && (
+                            <button
+                              className="small-btn"
+                              onClick={() => closeSlot(item)}
+                            >
+                              סגרי תור
+                            </button>
+                          )}
+
+                          {latestClaim && item.status === "cancelled" && cancellationLink && (
+                            <a
+                              className="small-btn whatsapp-small"
+                              href={cancellationLink}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              שלחי ביטול
+                            </a>
+                          )}
+
+                          <button
+                            className="small-btn delete-small"
+                            onClick={() => deleteSlot(item)}
+                          >
+                            מחקי
+                          </button>
                         </div>
                       </div>
                     );
@@ -1112,14 +1292,15 @@ ${link}
                     סטטוס: {statusIcon(claim.status)} {statusLabel(claim.status)}
                   </p>
 
-                  {claim.status !== "approved" && (
+                  {claim.status !== "approved" && slot.status !== "cancelled" && (
                     <button className="btn btn-approve" onClick={() => approveClaim()}>
                       אשרי את התור
                     </button>
                   )}
 
                   {(claim.status === "approved" || slot.status === "confirmed") &&
-                    approvalWhatsappLink && (
+                    approvalWhatsappLink &&
+                    slot.status !== "cancelled" && (
                       <a
                         className="btn btn-whatsapp"
                         href={approvalWhatsappLink}
@@ -1129,11 +1310,32 @@ ${link}
                         שלחי אישור ללקוחה ב־WhatsApp
                       </a>
                     )}
+
+                  {slot.status === "cancelled" && cancellationWhatsappLink && (
+                    <a
+                      className="btn btn-whatsapp"
+                      href={cancellationWhatsappLink}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      שלחי ביטול ללקוחה ב־WhatsApp
+                    </a>
+                  )}
                 </div>
               )}
 
               <button className="btn btn-whatsapp" onClick={() => copyWhatsappMessage()}>
                 העתיקי הודעת WhatsApp לרשימת תפוצה
+              </button>
+
+              {slot.status !== "cancelled" && (
+                <button className="btn btn-secondary" onClick={() => closeSlot()}>
+                  סגרי את התור
+                </button>
+              )}
+
+              <button className="btn btn-danger" onClick={() => deleteSlot()}>
+                מחקי את התור
               </button>
 
               <div className="link-box">
