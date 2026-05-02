@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
+import type { Session, User } from "@supabase/supabase-js";
+
+type Business = {
+  id: string;
+  owner_id: string;
+  business_name: string;
+  phone: string | null;
+};
 
 type Slot = {
   id: string;
+  business_id: string | null;
   business_name: string;
   service_name: string;
   slot_date: string;
@@ -27,30 +36,88 @@ type HistoryItem = Slot & {
 };
 
 function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [business, setBusiness] = useState<Business | null>(null);
+
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [showForm, setShowForm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [slot, setSlot] = useState<Slot | null>(null);
   const [showClientPage, setShowClientPage] = useState(false);
   const [claim, setClaim] = useState<Claim | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const clientLink = slot
     ? `${window.location.origin}/?slot=${slot.id}&view=client`
     : "";
 
   useEffect(() => {
-    loadFromUrl();
+    startApp();
+
+    const { data } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+
+      if (newSession?.user) {
+        loadBusiness(newSession.user.id);
+      } else {
+        setBusiness(null);
+      }
+    });
+
+    return () => {
+      data.subscription.unsubscribe();
+    };
   }, []);
 
-  async function loadFromUrl() {
+  async function startApp() {
+    setLoading(true);
+
+    const params = new URLSearchParams(window.location.search);
+    const slotId = params.get("slot");
+
+    if (slotId) {
+      await loadSlotFromUrl();
+      setLoading(false);
+      return;
+    }
+
+    const { data } = await supabase.auth.getSession();
+
+    setSession(data.session);
+    setUser(data.session?.user ?? null);
+
+    if (data.session?.user) {
+      await loadBusiness(data.session.user.id);
+    }
+
+    setLoading(false);
+  }
+
+  async function loadBusiness(userId: string) {
+    const { data, error } = await supabase
+      .from("businesses")
+      .select("*")
+      .eq("owner_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error(error);
+      alert("לא הצלחתי לטעון את העסק");
+      return;
+    }
+
+    setBusiness(data);
+  }
+
+  async function loadSlotFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const slotId = params.get("slot");
     const view = params.get("view");
 
     if (!slotId) return;
-
-    setLoading(true);
 
     const { data: slotData, error: slotError } = await supabase
       .from("slots")
@@ -61,7 +128,6 @@ function App() {
     if (slotError) {
       alert("לא הצלחתי לטעון את התור");
       console.error(slotError);
-      setLoading(false);
       return;
     }
 
@@ -84,11 +150,104 @@ function App() {
     if (view === "client") {
       setShowClientPage(true);
     }
+  }
+
+  async function handleAuth(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true);
+
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") || "");
+    const password = String(form.get("password") || "");
+
+    if (authMode === "register") {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        alert(error.message);
+        setLoading(false);
+        return;
+      }
+
+      if (!data.session) {
+        alert("נרשמת. אם Supabase מבקש אימות מייל, צריך לאשר במייל.");
+      }
+
+      setSession(data.session);
+      setUser(data.user);
+    } else {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        alert(error.message);
+        setLoading(false);
+        return;
+      }
+
+      setSession(data.session);
+      setUser(data.user);
+    }
 
     setLoading(false);
   }
 
+  async function handleLogout() {
+    await supabase.auth.signOut();
+
+    setSession(null);
+    setUser(null);
+    setBusiness(null);
+    setSlot(null);
+    setClaim(null);
+    setHistory([]);
+    setShowHistory(false);
+    setShowClientPage(false);
+    setShowForm(false);
+
+    window.history.pushState({}, "", "/");
+  }
+
+  async function handleCreateBusiness(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!user) return;
+
+    setLoading(true);
+
+    const form = new FormData(event.currentTarget);
+
+    const newBusiness = {
+      owner_id: user.id,
+      business_name: String(form.get("businessName") || ""),
+      phone: String(form.get("phone") || ""),
+    };
+
+    const { data, error } = await supabase
+      .from("businesses")
+      .insert(newBusiness)
+      .select()
+      .single();
+
+    if (error) {
+      alert("שגיאה ביצירת העסק");
+      console.error(error);
+      setLoading(false);
+      return;
+    }
+
+    setBusiness(data);
+    setLoading(false);
+  }
+
   async function loadHistory() {
+    if (!business) return;
+
     setLoading(true);
     setShowHistory(true);
     setShowForm(false);
@@ -99,10 +258,11 @@ function App() {
     const { data, error } = await supabase
       .from("slots")
       .select("*, claims(*)")
+      .eq("business_id", business.id)
       .order("created_at", { ascending: false });
 
     if (error) {
-      alert("לא הצלחתי לטעון היסטוריית תורים");
+      alert("לא הצלחתי לטעון היסטוריית ביטולים");
       console.error(error);
       setLoading(false);
       return;
@@ -115,12 +275,19 @@ function App() {
 
   async function handleCreateSlot(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!business) {
+      alert("צריך ליצור עסק לפני יצירת תור");
+      return;
+    }
+
     setLoading(true);
 
     const form = new FormData(event.currentTarget);
 
     const newSlot = {
-      business_name: String(form.get("businessName") || ""),
+      business_id: business.id,
+      business_name: business.business_name,
       service_name: String(form.get("serviceName") || ""),
       slot_date: String(form.get("date") || ""),
       slot_time: String(form.get("time") || ""),
@@ -239,10 +406,19 @@ function App() {
     if (showHistory) {
       await loadHistory();
     } else {
-      await loadFromUrl();
+      await loadSlotFromUrl();
     }
 
     setLoading(false);
+  }
+
+  function statusLabel(status: string) {
+    if (status === "open") return "פתוח";
+    if (status === "claimed") return "ממתין לאישור";
+    if (status === "confirmed") return "אושר";
+    if (status === "approved") return "אושר";
+    if (status === "pending") return "ממתין";
+    return status;
   }
 
   function copyClientLink(slotToCopy?: Slot) {
@@ -288,7 +464,7 @@ ${link}
     window.history.pushState({}, "", `/?slot=${historySlot.id}`);
   }
 
-  function resetToHome() {
+  function resetToDashboard() {
     setSlot(null);
     setClaim(null);
     setHistory([]);
@@ -314,248 +490,7 @@ ${link}
       <section style={styles.card}>
         <p style={styles.badge}>תורפול · ממלאים ביטולים ברגע האחרון</p>
 
-        {!showForm && !slot && !showClientPage && !showHistory && (
-          <>
-            <h1 style={styles.title}>התבטל תור? תמלאי אותו בקליק.</h1>
-
-            <p style={styles.subtitle}>
-              תורפול עוזרת לקוסמטיקאיות וקליניקות למלא חורים ביומן בלי לרדוף
-              אחרי לקוחות ב-WhatsApp.
-            </p>
-
-            <button style={styles.button} onClick={() => setShowForm(true)}>
-              צרי תור פנוי ראשון
-            </button>
-
-            <button style={styles.secondaryButton} onClick={loadHistory}>
-              צפי בהיסטוריית תורים
-            </button>
-
-            <p style={styles.smallText}>
-              7 ימים חינם. אם זה לא מילא לך לפחות תור אחד — אל תשלמי.
-            </p>
-          </>
-        )}
-
-        {showForm && (
-          <>
-            <h1 style={styles.formTitle}>יצירת תור פנוי</h1>
-
-            <form onSubmit={handleCreateSlot} style={styles.form}>
-              <label style={styles.label}>
-                שם העסק
-                <input
-                  name="businessName"
-                  placeholder="לדוגמה: קליניקת נועה"
-                  required
-                  style={styles.input}
-                />
-              </label>
-
-              <label style={styles.label}>
-                שם הטיפול
-                <input
-                  name="serviceName"
-                  placeholder="לדוגמה: טיפול פנים"
-                  required
-                  style={styles.input}
-                />
-              </label>
-
-              <label style={styles.label}>
-                תאריך
-                <input name="date" type="date" required style={styles.input} />
-              </label>
-
-              <label style={styles.label}>
-                שעה
-                <input name="time" type="time" required style={styles.input} />
-              </label>
-
-              <label style={styles.label}>
-                מחיר
-                <input
-                  name="price"
-                  type="number"
-                  placeholder="לדוגמה: 350"
-                  style={styles.input}
-                />
-              </label>
-
-              <label style={styles.label}>
-                הערה קצרה
-                <textarea
-                  name="note"
-                  placeholder="לדוגמה: מתאים ללקוחות חדשות וקיימות"
-                  style={{ ...styles.input, minHeight: "90px" }}
-                />
-              </label>
-
-              <button style={styles.button} type="submit">
-                צרי לינק לתור
-              </button>
-
-              <button
-                type="button"
-                style={styles.secondaryButton}
-                onClick={() => setShowForm(false)}
-              >
-                חזרה
-              </button>
-            </form>
-          </>
-        )}
-
-        {showHistory && (
-          <>
-            <h1 style={styles.formTitle}>היסטוריית תורים</h1>
-
-            {history.length === 0 ? (
-              <div style={styles.previewBox}>
-                <h2 style={styles.previewTitle}>אין עדיין תורים</h2>
-                <p>צרי תור ראשון כדי לראות אותו כאן.</p>
-              </div>
-            ) : (
-              <div style={styles.historyList}>
-                {history.map((item) => {
-                  const latestClaim = item.claims?.[0];
-
-                  return (
-                    <div key={item.id} style={styles.historyCard}>
-                      <h2 style={styles.previewTitle}>
-                        {item.business_name} · {item.service_name}
-                      </h2>
-
-                      <p>
-                        {item.slot_date} · {item.slot_time}
-                        {item.price ? ` · ${item.price} ₪` : ""}
-                      </p>
-
-                      <p>סטטוס תור: {item.status}</p>
-
-                      {latestClaim ? (
-                        <div style={styles.miniClaimBox}>
-                          <p>לקוחה: {latestClaim.client_name}</p>
-                          <p>טלפון: {latestClaim.client_phone}</p>
-                          <p>סטטוס בקשה: {latestClaim.status}</p>
-                        </div>
-                      ) : (
-                        <p style={styles.mutedText}>עדיין אין בקשות לתור הזה.</p>
-                      )}
-
-                      <div style={styles.buttonRow}>
-                        <button
-                          style={styles.smallButton}
-                          onClick={() => openSlotFromHistory(item)}
-                        >
-                          פתחי תור
-                        </button>
-
-                        <button
-                          style={styles.smallSecondaryButton}
-                          onClick={() => copyClientLink(item)}
-                        >
-                          העתיקי לינק
-                        </button>
-
-                        <button
-                          style={styles.smallWhatsappButton}
-                          onClick={() => copyWhatsappMessage(item)}
-                        >
-                          WhatsApp
-                        </button>
-
-                        {latestClaim && latestClaim.status !== "approved" && (
-                          <button
-                            style={styles.smallApproveButton}
-                            onClick={() => approveClaim(latestClaim, item)}
-                          >
-                            אשרי
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <button style={styles.button} onClick={() => setShowForm(true)}>
-              צרי תור חדש
-            </button>
-
-            <button style={styles.secondaryButton} onClick={resetToHome}>
-              חזרה למסך הראשי
-            </button>
-          </>
-        )}
-
-        {slot && !showClientPage && !showHistory && (
-          <>
-            <h1 style={styles.formTitle}>נוצר תור פנוי 🎉</h1>
-
-            <div style={styles.previewBox}>
-              <h2 style={styles.previewTitle}>
-                התפנה תור אצל {slot.business_name}
-              </h2>
-
-              <p>טיפול: {slot.service_name}</p>
-              <p>תאריך: {slot.slot_date}</p>
-              <p>שעה: {slot.slot_time}</p>
-              {slot.price && <p>מחיר: {slot.price} ₪</p>}
-              {slot.note && <p>הערה: {slot.note}</p>}
-              <p>סטטוס: {slot.status}</p>
-            </div>
-
-            <div style={styles.linkBox}>
-              <p style={styles.linkLabel}>לינק אמיתי לתור:</p>
-              <p style={styles.linkText}>{clientLink}</p>
-
-              <button style={styles.secondaryButton} onClick={() => copyClientLink()}>
-                העתיקי לינק לתור
-              </button>
-            </div>
-
-            {claim && (
-              <div style={styles.claimBox}>
-                <h2 style={styles.previewTitle}>מישהי תפסה את התור ✅</h2>
-                <p>שם: {claim.client_name}</p>
-                <p>טלפון: {claim.client_phone}</p>
-                <p>סטטוס בקשה: {claim.status}</p>
-
-                {claim.status !== "approved" && (
-                  <button style={styles.approveButton} onClick={() => approveClaim()}>
-                    אשרי את התור
-                  </button>
-                )}
-              </div>
-            )}
-
-            <button style={styles.whatsappButton} onClick={() => copyWhatsappMessage()}>
-              העתיקי הודעת WhatsApp
-            </button>
-
-            <button
-              style={styles.secondaryButton}
-              onClick={() => {
-                setShowClientPage(true);
-                window.history.pushState({}, "", `/?slot=${slot.id}&view=client`);
-              }}
-            >
-              פתחי תצוגת לקוחה
-            </button>
-
-            <button style={styles.secondaryButton} onClick={loadHistory}>
-              צפי בהיסטוריית תורים
-            </button>
-
-            <button style={styles.button} onClick={resetToHome}>
-              צרי תור נוסף
-            </button>
-          </>
-        )}
-
-        {slot && showClientPage && !showHistory && (
+        {slot && showClientPage && (
           <>
             <h1 style={styles.formTitle}>התפנה תור אצל {slot.business_name}</h1>
 
@@ -599,16 +534,325 @@ ${link}
                 </button>
               </form>
             )}
+          </>
+        )}
 
-            <button
-              type="button"
-              style={styles.secondaryButton}
-              onClick={() => {
-                setShowClientPage(false);
-                window.history.pushState({}, "", `/?slot=${slot.id}`);
-              }}
-            >
-              חזרה לבעלת העסק
+        {!slot && !session && (
+          <>
+            <h1 style={styles.title}>התבטל תור? תמלאי אותו בקליק.</h1>
+
+            <p style={styles.subtitle}>
+              תורפול עוזרת לקוסמטיקאיות וקליניקות למלא חורים ביומן דרך לינק
+              פשוט ללקוחות.
+            </p>
+
+            <div style={styles.authBox}>
+              <h2 style={styles.previewTitle}>
+                {authMode === "login" ? "התחברות" : "הרשמה"}
+              </h2>
+
+              <form onSubmit={handleAuth} style={styles.form}>
+                <label style={styles.label}>
+                  אימייל
+                  <input
+                    name="email"
+                    type="email"
+                    required
+                    placeholder="you@example.com"
+                    style={styles.input}
+                  />
+                </label>
+
+                <label style={styles.label}>
+                  סיסמה
+                  <input
+                    name="password"
+                    type="password"
+                    required
+                    placeholder="לפחות 6 תווים"
+                    style={styles.input}
+                  />
+                </label>
+
+                <button style={styles.button} type="submit">
+                  {authMode === "login" ? "התחברי" : "צרי משתמש"}
+                </button>
+              </form>
+
+              <button
+                style={styles.secondaryButton}
+                onClick={() =>
+                  setAuthMode(authMode === "login" ? "register" : "login")
+                }
+              >
+                {authMode === "login"
+                  ? "אין לך משתמש? הרשמי כאן"
+                  : "כבר יש לך משתמש? התחברי"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {session && !business && !slot && (
+          <>
+            <h1 style={styles.formTitle}>יצירת העסק שלך</h1>
+
+            <p style={styles.subtitle}>
+              זה השם שיופיע ללקוחות כשהן פותחות תור שהתפנה.
+            </p>
+
+            <form onSubmit={handleCreateBusiness} style={styles.form}>
+              <label style={styles.label}>
+                שם העסק
+                <input
+                  name="businessName"
+                  placeholder="לדוגמה: קליניקת נועה"
+                  required
+                  style={styles.input}
+                />
+              </label>
+
+              <label style={styles.label}>
+                טלפון העסק
+                <input
+                  name="phone"
+                  placeholder="לדוגמה: 0501234567"
+                  style={styles.input}
+                />
+              </label>
+
+              <button style={styles.button} type="submit">
+                צרי את העסק
+              </button>
+            </form>
+
+            <button style={styles.secondaryButton} onClick={handleLogout}>
+              התנתקות
+            </button>
+          </>
+        )}
+
+        {session &&
+          business &&
+          !showForm &&
+          !slot &&
+          !showClientPage &&
+          !showHistory && (
+            <>
+              <h1 style={styles.title}>שלום, {business.business_name}</h1>
+
+              <p style={styles.subtitle}>
+                צרי ביטול חדש, שלחי לינק ללקוחות, ותראי מי תפסה את התור.
+              </p>
+
+              <button style={styles.button} onClick={() => setShowForm(true)}>
+                צרי ביטול חדש
+              </button>
+
+              <button style={styles.secondaryButton} onClick={loadHistory}>
+                צפי בהיסטוריית ביטולים
+              </button>
+
+              <button style={styles.secondaryButton} onClick={handleLogout}>
+                התנתקות
+              </button>
+            </>
+          )}
+
+        {showForm && business && (
+          <>
+            <h1 style={styles.formTitle}>יצירת ביטול חדש</h1>
+
+            <form onSubmit={handleCreateSlot} style={styles.form}>
+              <label style={styles.label}>
+                שם הטיפול
+                <input
+                  name="serviceName"
+                  placeholder="לדוגמה: טיפול פנים"
+                  required
+                  style={styles.input}
+                />
+              </label>
+
+              <label style={styles.label}>
+                תאריך
+                <input name="date" type="date" required style={styles.input} />
+              </label>
+
+              <label style={styles.label}>
+                שעה
+                <input name="time" type="time" required style={styles.input} />
+              </label>
+
+              <label style={styles.label}>
+                מחיר
+                <input
+                  name="price"
+                  type="number"
+                  placeholder="לדוגמה: 350"
+                  style={styles.input}
+                />
+              </label>
+
+              <label style={styles.label}>
+                הערה קצרה
+                <textarea
+                  name="note"
+                  placeholder="לדוגמה: מתאים ללקוחות חדשות וקיימות"
+                  style={{ ...styles.input, minHeight: "90px" }}
+                />
+              </label>
+
+              <button style={styles.button} type="submit">
+                צרי לינק לביטול
+              </button>
+
+              <button
+                type="button"
+                style={styles.secondaryButton}
+                onClick={() => setShowForm(false)}
+              >
+                חזרה
+              </button>
+            </form>
+          </>
+        )}
+
+        {showHistory && business && (
+          <>
+            <h1 style={styles.formTitle}>היסטוריית ביטולים</h1>
+
+            {history.length === 0 ? (
+              <div style={styles.previewBox}>
+                <h2 style={styles.previewTitle}>אין עדיין ביטולים</h2>
+                <p>צרי ביטול ראשון כדי לראות אותו כאן.</p>
+              </div>
+            ) : (
+              <div style={styles.historyList}>
+                {history.map((item) => {
+                  const latestClaim = item.claims?.[0];
+
+                  return (
+                    <div key={item.id} style={styles.historyCard}>
+                      <h2 style={styles.previewTitle}>
+                        {item.service_name}
+                      </h2>
+
+                      <p>
+                        {item.slot_date} · {item.slot_time}
+                        {item.price ? ` · ${item.price} ₪` : ""}
+                      </p>
+
+                      <p>סטטוס ביטול: {statusLabel(item.status)}</p>
+
+                      {latestClaim ? (
+                        <div style={styles.miniClaimBox}>
+                          <p>לקוחה: {latestClaim.client_name}</p>
+                          <p>טלפון: {latestClaim.client_phone}</p>
+                          <p>סטטוס בקשה: {statusLabel(latestClaim.status)}</p>
+                        </div>
+                      ) : (
+                        <p style={styles.mutedText}>עדיין אין בקשות לביטול הזה.</p>
+                      )}
+
+                      <div style={styles.buttonRow}>
+                        <button
+                          style={styles.smallButton}
+                          onClick={() => openSlotFromHistory(item)}
+                        >
+                          פתחי ביטול
+                        </button>
+
+                        <button
+                          style={styles.smallSecondaryButton}
+                          onClick={() => copyClientLink(item)}
+                        >
+                          העתיקי לינק
+                        </button>
+
+                        <button
+                          style={styles.smallWhatsappButton}
+                          onClick={() => copyWhatsappMessage(item)}
+                        >
+                          WhatsApp
+                        </button>
+
+                        {latestClaim && latestClaim.status !== "approved" && (
+                          <button
+                            style={styles.smallApproveButton}
+                            onClick={() => approveClaim(latestClaim, item)}
+                          >
+                            אשרי
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <button style={styles.button} onClick={() => setShowForm(true)}>
+              צרי ביטול חדש
+            </button>
+
+            <button style={styles.secondaryButton} onClick={resetToDashboard}>
+              חזרה לדשבורד
+            </button>
+          </>
+        )}
+
+        {slot && !showClientPage && !showHistory && (
+          <>
+            <h1 style={styles.formTitle}>נוצר ביטול 🎉</h1>
+
+            <div style={styles.previewBox}>
+              <h2 style={styles.previewTitle}>
+                התפנה תור אצל {slot.business_name}
+              </h2>
+
+              <p>טיפול: {slot.service_name}</p>
+              <p>תאריך: {slot.slot_date}</p>
+              <p>שעה: {slot.slot_time}</p>
+              {slot.price && <p>מחיר: {slot.price} ₪</p>}
+              {slot.note && <p>הערה: {slot.note}</p>}
+              <p>סטטוס: {statusLabel(slot.status)}</p>
+            </div>
+
+            <div style={styles.linkBox}>
+              <p style={styles.linkLabel}>לינק ללקוחה:</p>
+              <p style={styles.linkText}>{clientLink}</p>
+
+              <button style={styles.secondaryButton} onClick={() => copyClientLink()}>
+                העתיקי לינק
+              </button>
+            </div>
+
+            {claim && (
+              <div style={styles.claimBox}>
+                <h2 style={styles.previewTitle}>מישהי תפסה את התור ✅</h2>
+                <p>שם: {claim.client_name}</p>
+                <p>טלפון: {claim.client_phone}</p>
+                <p>סטטוס בקשה: {statusLabel(claim.status)}</p>
+
+                {claim.status !== "approved" && (
+                  <button style={styles.approveButton} onClick={() => approveClaim()}>
+                    אשרי את התור
+                  </button>
+                )}
+              </div>
+            )}
+
+            <button style={styles.whatsappButton} onClick={() => copyWhatsappMessage()}>
+              העתיקי הודעת WhatsApp
+            </button>
+
+            <button style={styles.secondaryButton} onClick={loadHistory}>
+              צפי בהיסטוריית ביטולים
+            </button>
+
+            <button style={styles.button} onClick={resetToDashboard}>
+              חזרה לדשבורד
             </button>
           </>
         )}
@@ -643,7 +887,7 @@ const styles = {
     marginBottom: "24px",
   },
   title: {
-    fontSize: "64px",
+    fontSize: "56px",
     lineHeight: "1.05",
     margin: "0",
   },
@@ -656,6 +900,13 @@ const styles = {
     lineHeight: "1.7",
     color: "#d4d4d4",
     marginTop: "24px",
+  },
+  authBox: {
+    marginTop: "32px",
+    border: "1px solid #404040",
+    background: "#171717",
+    borderRadius: "22px",
+    padding: "24px",
   },
   form: {
     display: "grid",
@@ -723,11 +974,6 @@ const styles = {
     fontSize: "18px",
     fontWeight: "bold",
     cursor: "pointer",
-  },
-  smallText: {
-    marginTop: "24px",
-    color: "#a3a3a3",
-    fontSize: "14px",
   },
   mutedText: {
     color: "#a3a3a3",
