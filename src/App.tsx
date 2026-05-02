@@ -10,6 +10,7 @@ type Slot = {
   price: string | null;
   note: string | null;
   status: string;
+  created_at?: string;
 };
 
 type Claim = {
@@ -18,13 +19,20 @@ type Claim = {
   client_name: string;
   client_phone: string;
   status: string;
+  created_at?: string;
+};
+
+type HistoryItem = Slot & {
+  claims: Claim[];
 };
 
 function App() {
   const [showForm, setShowForm] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [slot, setSlot] = useState<Slot | null>(null);
   const [showClientPage, setShowClientPage] = useState(false);
   const [claim, setClaim] = useState<Claim | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   const clientLink = slot
@@ -52,18 +60,22 @@ function App() {
 
     if (slotError) {
       alert("לא הצלחתי לטעון את התור");
+      console.error(slotError);
       setLoading(false);
       return;
     }
 
     setSlot(slotData);
 
-    const { data: claimsData } = await supabase
+    const { data: claimsData, error: claimsError } = await supabase
       .from("claims")
       .select("*")
       .eq("slot_id", slotId)
-      .order("created_at", { ascending: false })
-      .limit(1);
+      .order("created_at", { ascending: false });
+
+    if (claimsError) {
+      console.error(claimsError);
+    }
 
     if (claimsData && claimsData.length > 0) {
       setClaim(claimsData[0]);
@@ -73,6 +85,31 @@ function App() {
       setShowClientPage(true);
     }
 
+    setLoading(false);
+  }
+
+  async function loadHistory() {
+    setLoading(true);
+    setShowHistory(true);
+    setShowForm(false);
+    setShowClientPage(false);
+    setSlot(null);
+    setClaim(null);
+
+    const { data, error } = await supabase
+      .from("slots")
+      .select("*, claims(*)")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      alert("לא הצלחתי לטעון היסטוריית תורים");
+      console.error(error);
+      setLoading(false);
+      return;
+    }
+
+    setHistory((data || []) as HistoryItem[]);
+    window.history.pushState({}, "", "/");
     setLoading(false);
   }
 
@@ -107,6 +144,8 @@ function App() {
 
     setSlot(data);
     setClaim(null);
+    setHistory([]);
+    setShowHistory(false);
     setShowForm(false);
     setShowClientPage(false);
 
@@ -163,52 +202,73 @@ function App() {
     setLoading(false);
   }
 
-  async function approveClaim() {
-    if (!slot || !claim) return;
+  async function approveClaim(claimToApprove?: Claim, slotToApprove?: Slot) {
+    const activeClaim = claimToApprove || claim;
+    const activeSlot = slotToApprove || slot;
+
+    if (!activeSlot || !activeClaim) return;
 
     setLoading(true);
 
-    await supabase.from("claims").update({ status: "approved" }).eq("id", claim.id);
+    const { error: claimError } = await supabase
+      .from("claims")
+      .update({ status: "approved" })
+      .eq("id", activeClaim.id);
 
-    const { data: updatedSlot } = await supabase
+    if (claimError) {
+      alert("שגיאה באישור הבקשה");
+      console.error(claimError);
+      setLoading(false);
+      return;
+    }
+
+    const { error: slotError } = await supabase
       .from("slots")
       .update({ status: "confirmed" })
-      .eq("id", slot.id)
-      .select()
-      .single();
+      .eq("id", activeSlot.id);
 
-    const { data: updatedClaim } = await supabase
-      .from("claims")
-      .select("*")
-      .eq("id", claim.id)
-      .single();
-
-    if (updatedSlot) setSlot(updatedSlot);
-    if (updatedClaim) setClaim(updatedClaim);
+    if (slotError) {
+      alert("שגיאה באישור התור");
+      console.error(slotError);
+      setLoading(false);
+      return;
+    }
 
     alert("התור אושר ✅");
+
+    if (showHistory) {
+      await loadHistory();
+    } else {
+      await loadFromUrl();
+    }
 
     setLoading(false);
   }
 
-  function copyClientLink() {
-    if (!clientLink) return;
-    navigator.clipboard.writeText(clientLink);
+  function copyClientLink(slotToCopy?: Slot) {
+    const targetSlot = slotToCopy || slot;
+    if (!targetSlot) return;
+
+    const link = `${window.location.origin}/?slot=${targetSlot.id}&view=client`;
+    navigator.clipboard.writeText(link);
     alert("הלינק לתור הועתק!");
   }
 
-  function copyWhatsappMessage() {
-    if (!slot) return;
+  function copyWhatsappMessage(slotToCopy?: Slot) {
+    const targetSlot = slotToCopy || slot;
+    if (!targetSlot) return;
+
+    const link = `${window.location.origin}/?slot=${targetSlot.id}&view=client`;
 
     const message = `היי ❤️
-התפנה תור ל-${slot.service_name} אצל ${slot.business_name}
+התפנה תור ל-${targetSlot.service_name} אצל ${targetSlot.business_name}
 
-📅 ${slot.slot_date}
-🕒 ${slot.slot_time}
-${slot.price ? `💸 ${slot.price} ₪` : ""}
+📅 ${targetSlot.slot_date}
+🕒 ${targetSlot.slot_time}
+${targetSlot.price ? `💸 ${targetSlot.price} ₪` : ""}
 
 מי שרוצה לתפוס את התור יכולה להיכנס כאן:
-${clientLink}
+${link}
 
 הראשונה שמשאירה פרטים נכנסת לאישור 🙌`;
 
@@ -216,9 +276,23 @@ ${clientLink}
     alert("הודעת WhatsApp הועתקה!");
   }
 
+  function openSlotFromHistory(historySlot: HistoryItem) {
+    const latestClaim = historySlot.claims?.[0] || null;
+
+    setSlot(historySlot);
+    setClaim(latestClaim);
+    setShowHistory(false);
+    setShowForm(false);
+    setShowClientPage(false);
+
+    window.history.pushState({}, "", `/?slot=${historySlot.id}`);
+  }
+
   function resetToHome() {
     setSlot(null);
     setClaim(null);
+    setHistory([]);
+    setShowHistory(false);
     setShowClientPage(false);
     setShowForm(false);
     window.history.pushState({}, "", "/");
@@ -240,7 +314,7 @@ ${clientLink}
       <section style={styles.card}>
         <p style={styles.badge}>תורפול · ממלאים ביטולים ברגע האחרון</p>
 
-        {!showForm && !slot && !showClientPage && (
+        {!showForm && !slot && !showClientPage && !showHistory && (
           <>
             <h1 style={styles.title}>התבטל תור? תמלאי אותו בקליק.</h1>
 
@@ -251,6 +325,10 @@ ${clientLink}
 
             <button style={styles.button} onClick={() => setShowForm(true)}>
               צרי תור פנוי ראשון
+            </button>
+
+            <button style={styles.secondaryButton} onClick={loadHistory}>
+              צפי בהיסטוריית תורים
             </button>
 
             <p style={styles.smallText}>
@@ -328,7 +406,91 @@ ${clientLink}
           </>
         )}
 
-        {slot && !showClientPage && (
+        {showHistory && (
+          <>
+            <h1 style={styles.formTitle}>היסטוריית תורים</h1>
+
+            {history.length === 0 ? (
+              <div style={styles.previewBox}>
+                <h2 style={styles.previewTitle}>אין עדיין תורים</h2>
+                <p>צרי תור ראשון כדי לראות אותו כאן.</p>
+              </div>
+            ) : (
+              <div style={styles.historyList}>
+                {history.map((item) => {
+                  const latestClaim = item.claims?.[0];
+
+                  return (
+                    <div key={item.id} style={styles.historyCard}>
+                      <h2 style={styles.previewTitle}>
+                        {item.business_name} · {item.service_name}
+                      </h2>
+
+                      <p>
+                        {item.slot_date} · {item.slot_time}
+                        {item.price ? ` · ${item.price} ₪` : ""}
+                      </p>
+
+                      <p>סטטוס תור: {item.status}</p>
+
+                      {latestClaim ? (
+                        <div style={styles.miniClaimBox}>
+                          <p>לקוחה: {latestClaim.client_name}</p>
+                          <p>טלפון: {latestClaim.client_phone}</p>
+                          <p>סטטוס בקשה: {latestClaim.status}</p>
+                        </div>
+                      ) : (
+                        <p style={styles.mutedText}>עדיין אין בקשות לתור הזה.</p>
+                      )}
+
+                      <div style={styles.buttonRow}>
+                        <button
+                          style={styles.smallButton}
+                          onClick={() => openSlotFromHistory(item)}
+                        >
+                          פתחי תור
+                        </button>
+
+                        <button
+                          style={styles.smallSecondaryButton}
+                          onClick={() => copyClientLink(item)}
+                        >
+                          העתיקי לינק
+                        </button>
+
+                        <button
+                          style={styles.smallWhatsappButton}
+                          onClick={() => copyWhatsappMessage(item)}
+                        >
+                          WhatsApp
+                        </button>
+
+                        {latestClaim && latestClaim.status !== "approved" && (
+                          <button
+                            style={styles.smallApproveButton}
+                            onClick={() => approveClaim(latestClaim, item)}
+                          >
+                            אשרי
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <button style={styles.button} onClick={() => setShowForm(true)}>
+              צרי תור חדש
+            </button>
+
+            <button style={styles.secondaryButton} onClick={resetToHome}>
+              חזרה למסך הראשי
+            </button>
+          </>
+        )}
+
+        {slot && !showClientPage && !showHistory && (
           <>
             <h1 style={styles.formTitle}>נוצר תור פנוי 🎉</h1>
 
@@ -349,7 +511,7 @@ ${clientLink}
               <p style={styles.linkLabel}>לינק אמיתי לתור:</p>
               <p style={styles.linkText}>{clientLink}</p>
 
-              <button style={styles.secondaryButton} onClick={copyClientLink}>
+              <button style={styles.secondaryButton} onClick={() => copyClientLink()}>
                 העתיקי לינק לתור
               </button>
             </div>
@@ -362,14 +524,14 @@ ${clientLink}
                 <p>סטטוס בקשה: {claim.status}</p>
 
                 {claim.status !== "approved" && (
-                  <button style={styles.approveButton} onClick={approveClaim}>
+                  <button style={styles.approveButton} onClick={() => approveClaim()}>
                     אשרי את התור
                   </button>
                 )}
               </div>
             )}
 
-            <button style={styles.whatsappButton} onClick={copyWhatsappMessage}>
+            <button style={styles.whatsappButton} onClick={() => copyWhatsappMessage()}>
               העתיקי הודעת WhatsApp
             </button>
 
@@ -383,13 +545,17 @@ ${clientLink}
               פתחי תצוגת לקוחה
             </button>
 
+            <button style={styles.secondaryButton} onClick={loadHistory}>
+              צפי בהיסטוריית תורים
+            </button>
+
             <button style={styles.button} onClick={resetToHome}>
               צרי תור נוסף
             </button>
           </>
         )}
 
-        {slot && showClientPage && (
+        {slot && showClientPage && !showHistory && (
           <>
             <h1 style={styles.formTitle}>התפנה תור אצל {slot.business_name}</h1>
 
@@ -464,7 +630,7 @@ const styles = {
   },
   card: {
     width: "100%",
-    maxWidth: "760px",
+    maxWidth: "860px",
     textAlign: "center" as const,
   },
   badge: {
@@ -563,6 +729,9 @@ const styles = {
     color: "#a3a3a3",
     fontSize: "14px",
   },
+  mutedText: {
+    color: "#a3a3a3",
+  },
   previewBox: {
     border: "1px solid #404040",
     background: "#171717",
@@ -604,9 +773,72 @@ const styles = {
     textAlign: "right" as const,
     fontSize: "18px",
   },
+  miniClaimBox: {
+    border: "1px solid rgba(34, 197, 94, 0.35)",
+    background: "rgba(34, 197, 94, 0.08)",
+    borderRadius: "16px",
+    padding: "12px 16px",
+    marginTop: "12px",
+  },
   previewTitle: {
     marginTop: 0,
     fontSize: "28px",
+  },
+  historyList: {
+    display: "grid",
+    gap: "16px",
+  },
+  historyCard: {
+    border: "1px solid #404040",
+    background: "#171717",
+    borderRadius: "22px",
+    padding: "24px",
+    textAlign: "right" as const,
+  },
+  buttonRow: {
+    display: "flex",
+    flexWrap: "wrap" as const,
+    gap: "10px",
+    marginTop: "16px",
+  },
+  smallButton: {
+    background: "#ec4899",
+    color: "white",
+    border: "none",
+    borderRadius: "14px",
+    padding: "10px 16px",
+    fontSize: "14px",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  smallSecondaryButton: {
+    background: "transparent",
+    color: "#d4d4d4",
+    border: "1px solid #404040",
+    borderRadius: "14px",
+    padding: "10px 16px",
+    fontSize: "14px",
+    cursor: "pointer",
+  },
+  smallWhatsappButton: {
+    background: "#22c55e",
+    color: "white",
+    border: "none",
+    borderRadius: "14px",
+    padding: "10px 16px",
+    fontSize: "14px",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  smallApproveButton: {
+    background: "#16a34a",
+    color: "white",
+    border: "none",
+    borderRadius: "14px",
+    padding: "10px 16px",
+    fontSize: "14px",
+    fontWeight: "bold",
+    cursor: "pointer",
   },
 };
 
