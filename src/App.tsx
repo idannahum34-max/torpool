@@ -37,6 +37,8 @@ type HistoryItem = Slot & {
   claims: Claim[];
 };
 
+type AccessStatus = "checking" | "guest" | "allowed" | "denied";
+
 function normalizePhoneForWhatsapp(phone: string | null | undefined) {
   if (!phone) return "";
 
@@ -86,9 +88,13 @@ function LogoMark() {
 }
 
 function App() {
+  const paymentWhatsappPhone = "972YOUR_PHONE_HERE";
+
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [business, setBusiness] = useState<Business | null>(null);
+  const [accessStatus, setAccessStatus] =
+    useState<AccessStatus>("checking");
 
   const [authMode, setAuthMode] = useState<
     "login" | "register" | "forgot" | "reset"
@@ -119,6 +125,7 @@ function App() {
 
   const isDashboardPage =
     Boolean(session) &&
+    accessStatus === "allowed" &&
     Boolean(business) &&
     !slot &&
     !showClientPage &&
@@ -144,9 +151,16 @@ function App() {
       }
 
       if (newSession?.user) {
-        loadBusiness(newSession.user.id);
+        checkPaidAccess().then((allowed) => {
+          if (allowed) {
+            loadBusiness(newSession.user.id);
+          } else {
+            setBusiness(null);
+          }
+        });
       } else {
         setBusiness(null);
+        setAccessStatus("guest");
         setApprovedCount(0);
         setApprovedValue(0);
         setPendingCount(0);
@@ -158,6 +172,21 @@ function App() {
       data.subscription.unsubscribe();
     };
   }, []);
+
+  async function checkPaidAccess() {
+    const { data, error } = await supabase.rpc("is_current_user_allowed");
+
+    if (error) {
+      console.error("Access check failed:", error);
+      setAccessStatus("denied");
+      return false;
+    }
+
+    const allowed = data === true;
+    setAccessStatus(allowed ? "allowed" : "denied");
+
+    return allowed;
+  }
 
   async function startApp() {
     setLoading(true);
@@ -175,7 +204,15 @@ function App() {
     setUser(data.session?.user ?? null);
 
     if (data.session?.user && !window.location.hash.includes("type=recovery")) {
-      await loadBusiness(data.session.user.id);
+      const allowed = await checkPaidAccess();
+
+      if (allowed) {
+        await loadBusiness(data.session.user.id);
+      } else {
+        setBusiness(null);
+      }
+    } else {
+      setAccessStatus("guest");
     }
 
     if (slotId) {
@@ -294,6 +331,16 @@ function App() {
 
       setSession(data.session);
       setUser(data.user);
+
+      if (data.user) {
+        const allowed = await checkPaidAccess();
+
+        if (allowed) {
+          await loadBusiness(data.user.id);
+        } else {
+          setBusiness(null);
+        }
+      }
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -308,6 +355,16 @@ function App() {
 
       setSession(data.session);
       setUser(data.user);
+
+      if (data.user) {
+        const allowed = await checkPaidAccess();
+
+        if (allowed) {
+          await loadBusiness(data.user.id);
+        } else {
+          setBusiness(null);
+        }
+      }
     }
 
     setLoading(false);
@@ -379,6 +436,7 @@ function App() {
     setSession(null);
     setUser(null);
     setBusiness(null);
+    setAccessStatus("guest");
     setAuthMode("login");
 
     window.history.pushState({}, "", "/");
@@ -392,6 +450,7 @@ function App() {
     setSession(null);
     setUser(null);
     setBusiness(null);
+    setAccessStatus("guest");
     setSlot(null);
     setClaim(null);
     setHistory([]);
@@ -406,9 +465,19 @@ function App() {
     window.history.pushState({}, "", "/");
   }
 
+  function guardPaidAccess() {
+    if (accessStatus !== "allowed") {
+      alert("הגישה לפעולה הזו פתוחה למנויות פעילות בלבד.");
+      return false;
+    }
+
+    return true;
+  }
+
   async function handleCreateBusiness(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!guardPaidAccess()) return;
     if (!user) return;
 
     setLoading(true);
@@ -430,7 +499,7 @@ function App() {
 
     if (error) {
       console.error(error);
-      alert("שגיאה ביצירת העסק");
+      alert("שגיאה ביצירת העסק. ייתכן שאין לחשבון הזה גישה פעילה.");
       setLoading(false);
       return;
     }
@@ -443,6 +512,7 @@ function App() {
   async function handleUpdateBusiness(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!guardPaidAccess()) return;
     if (!business) return;
 
     setLoading(true);
@@ -486,6 +556,8 @@ function App() {
   async function handleCreateSlot(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!guardPaidAccess()) return;
+
     if (!business) {
       alert("צריך ליצור עסק לפני יצירת תור");
       return;
@@ -520,7 +592,7 @@ function App() {
 
     if (error) {
       console.error(error);
-      alert("שגיאה ביצירת התור");
+      alert("שגיאה ביצירת התור. ייתכן שאין לחשבון הזה גישה פעילה.");
       setLoading(false);
       return;
     }
@@ -542,6 +614,8 @@ function App() {
 
   async function handleUpdateSlot(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!guardPaidAccess()) return;
 
     if (!slot || !business || slot.business_id !== business.id) {
       alert("אין לך הרשאה לערוך את התור הזה");
@@ -672,6 +746,7 @@ function App() {
   }
 
   async function loadHistory() {
+    if (!guardPaidAccess()) return;
     if (!business) return;
 
     setLoading(true);
@@ -705,6 +780,8 @@ function App() {
   }
 
   async function approveClaim(claimToApprove?: Claim, slotToApprove?: Slot) {
+    if (!guardPaidAccess()) return;
+
     const activeClaim = claimToApprove || claim;
     const activeSlot = slotToApprove || slot;
 
@@ -760,6 +837,8 @@ function App() {
   }
 
   async function rejectClaim(claimToReject?: Claim, slotToReject?: Slot) {
+    if (!guardPaidAccess()) return;
+
     const activeClaim = claimToReject || claim;
     const activeSlot = slotToReject || slot;
 
@@ -821,6 +900,8 @@ function App() {
   }
 
   async function cancelSlot(slotToCancel?: Slot) {
+    if (!guardPaidAccess()) return;
+
     const activeSlot = slotToCancel || slot;
 
     if (!business || !activeSlot) return;
@@ -864,6 +945,8 @@ function App() {
   }
 
   async function deleteSlot(slotToDelete?: Slot) {
+    if (!guardPaidAccess()) return;
+
     const activeSlot = slotToDelete || slot;
 
     if (!business || !activeSlot) return;
@@ -935,12 +1018,14 @@ function App() {
 
     window.history.pushState({}, "", "/");
 
-    if (business) {
+    if (business && accessStatus === "allowed") {
       loadDashboardStats(business.id);
     }
   }
 
   function goToCreateSlot() {
+    if (!guardPaidAccess()) return;
+
     setShowCreateSlot(true);
     setShowHistory(false);
     setShowClientPage(false);
@@ -1121,6 +1206,7 @@ ${link}
 
   function screenLabel() {
     if (authMode === "reset") return "איפוס סיסמה";
+    if (accessStatus === "denied" && session) return "גישה למנויות בלבד";
     if (isLandingPage) return "מילוי תורים שהתפנו";
     if (showHistory) return "היסטוריית תורים";
     if (showEditBusiness) return "הגדרות העסק";
@@ -1137,13 +1223,95 @@ ${link}
   const rejectionWhatsappLink = buildRejectionWhatsappLink();
   const cancellationWhatsappLink = buildCancellationWhatsappLink();
 
-  if (loading) {
+  if (loading || (session && accessStatus === "checking")) {
     return (
       <div className="app-shell" dir="rtl">
         <div className="page-frame">
           <section className="glass-card loading-card">
             <div className="loader-dot" />
             <h2>טוען...</h2>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
+  if (session && authMode !== "reset" && accessStatus === "denied") {
+    const paymentMessage = encodeURIComponent(
+      `היי, אני רוצה להצטרף למנוי של תורפול. נרשמתי עם האימייל: ${
+        user?.email || ""
+      }`
+    );
+
+    const paymentWhatsappLink = `https://wa.me/${paymentWhatsappPhone}?text=${paymentMessage}`;
+
+    return (
+      <div className="app-shell" dir="rtl">
+        <div className="page-frame">
+          <header className="topbar">
+            <div className="brand-box">
+              <LogoMark />
+              <div className="brand-copy">
+                <div className="eyebrow">גישה למנויות בלבד</div>
+                <h1 className="brand-title">תורפול</h1>
+                <p className="brand-subtitle">תור מתבטל? תורפול ממלאה.</p>
+              </div>
+            </div>
+
+            <div className="topbar-side">
+              <button className="btn btn-secondary btn-small" onClick={handleLogout}>
+                התנתקות
+              </button>
+            </div>
+          </header>
+
+          <section className="hero-card glass-card hero-grid">
+            <div className="hero-copy">
+              <span className="section-kicker">מנוי נדרש</span>
+              <h2>הגישה לתורפול פתוחה למנויות פעילות בלבד</h2>
+              <p>
+                החשבון שלך נוצר בהצלחה, אבל עדיין לא הופעלה לך גישה למערכת.
+                כדי להשתמש בתורפול צריך להצטרף למנוי הפיילוט.
+              </p>
+
+              <div className="hero-bullets">
+                <div className="mini-pill">גישה אישית לעסק</div>
+                <div className="mini-pill">יצירת תורים שהתפנו</div>
+                <div className="mini-pill">קבלת בקשות מלקוחות</div>
+                <div className="mini-pill">התראות על בקשות חדשות</div>
+              </div>
+            </div>
+
+            <div className="form-card glass-card accent-card">
+              <div className="card-head">
+                <span className="section-kicker">פיילוט</span>
+                <h3>מנוי לעסקים ראשונים</h3>
+              </div>
+
+              <div className="price-card">
+                <strong>49 ₪</strong>
+                <span>לחודש בתקופת הפיילוט</span>
+              </div>
+
+              <p className="form-help">
+                אחרי התשלום, הגישה שלך תופעל לפי האימייל שאיתו נרשמת.
+              </p>
+
+              <div className="action-row">
+                <a
+                  className="btn btn-primary"
+                  href={paymentWhatsappLink}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  בקשת הצטרפות למנוי
+                </a>
+
+                <button className="btn btn-secondary" onClick={handleLogout}>
+                  התנתקות
+                </button>
+              </div>
+            </div>
           </section>
         </div>
       </div>
@@ -1370,47 +1538,51 @@ ${link}
           </>
         )}
 
-        {session && !business && !slot && authMode !== "reset" && (
-          <section className="form-card glass-card">
-            <div className="card-head">
-              <span className="section-kicker">הקמת עסק</span>
-              <h3>בואי ניצור את העסק שלך</h3>
-            </div>
-
-            <form className="form-grid" onSubmit={handleCreateBusiness}>
-              <label className="field">
-                <span>שם העסק</span>
-                <input
-                  name="businessName"
-                  placeholder="לדוגמה: קליניקת נועה"
-                  required
-                />
-              </label>
-
-              <label className="field">
-                <span>טלפון WhatsApp של העסק</span>
-                <input name="phone" placeholder="0501234567" required />
-              </label>
-
-              <label className="field field-full">
-                <span>אימייל לקבלת התראות</span>
-                <input
-                  name="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  defaultValue={user?.email || ""}
-                  required
-                />
-              </label>
-
-              <div className="field-full form-actions">
-                <button className="btn btn-primary" type="submit">
-                  צרי עסק
-                </button>
+        {session &&
+          accessStatus === "allowed" &&
+          !business &&
+          !slot &&
+          authMode !== "reset" && (
+            <section className="form-card glass-card">
+              <div className="card-head">
+                <span className="section-kicker">הקמת עסק</span>
+                <h3>בואי ניצור את העסק שלך</h3>
               </div>
-            </form>
-          </section>
-        )}
+
+              <form className="form-grid" onSubmit={handleCreateBusiness}>
+                <label className="field">
+                  <span>שם העסק</span>
+                  <input
+                    name="businessName"
+                    placeholder="לדוגמה: קליניקת נועה"
+                    required
+                  />
+                </label>
+
+                <label className="field">
+                  <span>טלפון WhatsApp של העסק</span>
+                  <input name="phone" placeholder="0501234567" required />
+                </label>
+
+                <label className="field field-full">
+                  <span>אימייל לקבלת התראות</span>
+                  <input
+                    name="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    defaultValue={user?.email || ""}
+                    required
+                  />
+                </label>
+
+                <div className="field-full form-actions">
+                  <button className="btn btn-primary" type="submit">
+                    צרי עסק
+                  </button>
+                </div>
+              </form>
+            </section>
+          )}
 
         {slot && showClientPage && authMode !== "reset" && (
           <>

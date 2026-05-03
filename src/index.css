@@ -910,3 +910,25 @@ textarea {
     align-items: flex-start;
   }
 }
+.price-card {
+  display: grid;
+  gap: 6px;
+  padding: 22px;
+  margin: 18px 0;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  text-align: center;
+}
+
+.price-card strong {
+  font-size: clamp(2.4rem, 6vw, 4.2rem);
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: -0.05em;
+}
+
+.price-card span {
+  color: var(--muted);
+  font-weight: 700;
+}
