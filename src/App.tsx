@@ -79,6 +79,14 @@ function buildWhatsappUrl(phone: string, message: string) {
   )}`;
 }
 
+function sortClaims(items: Claim[]) {
+  return [...items].sort((a, b) => {
+    const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return bTime - aTime;
+  });
+}
+
 function LogoMark() {
   return (
     <div className="logo-mark" aria-label="TorPool logo">
@@ -88,20 +96,20 @@ function LogoMark() {
 }
 
 function App() {
-  const paymentWhatsappPhone = "972YOUR_PHONE_HERE";
+  const paymentWhatsappPhone = "972559998187";
 
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [business, setBusiness] = useState<Business | null>(null);
-  const [accessStatus, setAccessStatus] =
-    useState<AccessStatus>("checking");
+  const [accessStatus, setAccessStatus] = useState<AccessStatus>("checking");
 
   const [authMode, setAuthMode] = useState<
     "login" | "register" | "forgot" | "reset"
   >("login");
 
   const [slot, setSlot] = useState<Slot | null>(null);
-  const [claim, setClaim] = useState<Claim | null>(null);
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [clientClaim, setClientClaim] = useState<Claim | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -245,7 +253,7 @@ function App() {
   async function loadDashboardStats(businessId: string) {
     const { data, error } = await supabase
       .from("slots")
-      .select("*")
+      .select("*, claims(*)")
       .eq("business_id", businessId);
 
     if (error) {
@@ -253,11 +261,15 @@ function App() {
       return;
     }
 
-    const slots = data || [];
+    const slots = (data || []) as HistoryItem[];
 
     const confirmed = slots.filter((item) => item.status === "confirmed");
-    const pending = slots.filter((item) => item.status === "claimed");
     const cancelled = slots.filter((item) => item.status === "cancelled");
+
+    const pendingClaims = slots.reduce((sum, item) => {
+      const itemClaims = item.claims || [];
+      return sum + itemClaims.filter((claim) => claim.status === "pending").length;
+    }, 0);
 
     const value = confirmed.reduce((sum, item) => {
       const price = Number(item.price || 0);
@@ -266,7 +278,7 @@ function App() {
 
     setApprovedCount(confirmed.length);
     setApprovedValue(value);
-    setPendingCount(pending.length);
+    setPendingCount(pendingClaims);
     setCancelledCount(cancelled.length);
   }
 
@@ -301,7 +313,8 @@ function App() {
       console.error(claimsError);
     }
 
-    setClaim(claimsData && claimsData.length > 0 ? claimsData[0] : null);
+    setClaims(sortClaims((claimsData || []) as Claim[]));
+    setClientClaim(null);
     setShowClientPage(view === "client");
   }
 
@@ -452,7 +465,8 @@ function App() {
     setBusiness(null);
     setAccessStatus("guest");
     setSlot(null);
-    setClaim(null);
+    setClaims([]);
+    setClientClaim(null);
     setHistory([]);
 
     setShowClientPage(false);
@@ -598,7 +612,8 @@ function App() {
     }
 
     setSlot(data);
-    setClaim(null);
+    setClaims([]);
+    setClientClaim(null);
     setClientSubmitted(false);
 
     setShowCreateSlot(false);
@@ -619,6 +634,11 @@ function App() {
 
     if (!slot || !business || slot.business_id !== business.id) {
       alert("אין לך הרשאה לערוך את התור הזה");
+      return;
+    }
+
+    if (slot.status === "confirmed") {
+      alert("התור כבר נסגר. אם צריך, מחקי או בטלי אותו.");
       return;
     }
 
@@ -681,13 +701,13 @@ function App() {
 
     if (!slot) return;
 
-    if (slot.status === "confirmed" || slot.status === "cancelled") {
-      alert("התור כבר לא זמין");
+    if (slot.status === "confirmed") {
+      alert("התור כבר נסגר");
       return;
     }
 
-    if (slot.status !== "open") {
-      alert("כבר נשלחה בקשה לתור הזה. בעלת העסק תבדוק ותחזור אלייך.");
+    if (slot.status === "cancelled") {
+      alert("התור כבר לא זמין");
       return;
     }
 
@@ -711,7 +731,11 @@ function App() {
       status: "pending",
     };
 
-    const { error: claimError } = await supabase.from("claims").insert(newClaim);
+    const { data, error: claimError } = await supabase
+      .from("claims")
+      .insert(newClaim)
+      .select()
+      .single();
 
     if (claimError) {
       console.error(claimError);
@@ -722,21 +746,10 @@ function App() {
 
     await sendClaimEmailNotification(slot.id, clientName, clientPhone);
 
-    const localClaim: Claim = {
-      id: "local-client-claim",
-      slot_id: slot.id,
-      client_name: clientName,
-      client_phone: clientPhone,
-      status: "pending",
-      created_at: new Date().toISOString(),
-    };
+    const insertedClaim = data as Claim;
 
-    setClaim(localClaim);
-    setSlot({
-      ...slot,
-      status: "claimed",
-    });
-
+    setClientClaim(insertedClaim);
+    setClaims((prev) => sortClaims([insertedClaim, ...prev]));
     setClientSubmitted(true);
     setShowClientPage(true);
 
@@ -757,7 +770,8 @@ function App() {
     setShowEditBusiness(false);
     setShowEditSlot(false);
     setSlot(null);
-    setClaim(null);
+    setClaims([]);
+    setClientClaim(null);
     setClientSubmitted(false);
 
     const { data, error } = await supabase
@@ -773,19 +787,23 @@ function App() {
       return;
     }
 
-    setHistory((data || []) as HistoryItem[]);
+    const items = ((data || []) as HistoryItem[]).map((item) => ({
+      ...item,
+      claims: sortClaims(item.claims || []),
+    }));
+
+    setHistory(items);
     window.history.pushState({}, "", "/");
 
     setLoading(false);
   }
 
-  async function approveClaim(claimToApprove?: Claim, slotToApprove?: Slot) {
+  async function approveClaim(claimToApprove: Claim, slotToApprove?: Slot) {
     if (!guardPaidAccess()) return;
 
-    const activeClaim = claimToApprove || claim;
     const activeSlot = slotToApprove || slot;
 
-    if (!business || !activeClaim || !activeSlot) return;
+    if (!business || !claimToApprove || !activeSlot) return;
 
     if (activeSlot.business_id !== business.id) {
       alert("אין לך הרשאה לאשר את התור הזה");
@@ -797,18 +815,40 @@ function App() {
       return;
     }
 
+    if (activeSlot.status === "confirmed") {
+      alert("התור כבר נסגר");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `לסגור את התור עם ${claimToApprove.client_name}? שאר הבקשות הממתינות יסומנו כנדחו.`
+    );
+
+    if (!confirmed) return;
+
     setLoading(true);
 
     const { error: claimError } = await supabase
       .from("claims")
       .update({ status: "approved" })
-      .eq("id", activeClaim.id);
+      .eq("id", claimToApprove.id);
 
     if (claimError) {
       console.error(claimError);
       alert("שגיאה באישור הבקשה");
       setLoading(false);
       return;
+    }
+
+    const { error: rejectOtherClaimsError } = await supabase
+      .from("claims")
+      .update({ status: "rejected" })
+      .eq("slot_id", activeSlot.id)
+      .neq("id", claimToApprove.id)
+      .eq("status", "pending");
+
+    if (rejectOtherClaimsError) {
+      console.error(rejectOtherClaimsError);
     }
 
     const { error: slotError } = await supabase
@@ -836,26 +876,25 @@ function App() {
     setLoading(false);
   }
 
-  async function rejectClaim(claimToReject?: Claim, slotToReject?: Slot) {
+  async function rejectClaim(claimToReject: Claim, slotToReject?: Slot) {
     if (!guardPaidAccess()) return;
 
-    const activeClaim = claimToReject || claim;
     const activeSlot = slotToReject || slot;
 
-    if (!business || !activeClaim || !activeSlot) return;
+    if (!business || !claimToReject || !activeSlot) return;
 
     if (activeSlot.business_id !== business.id) {
       alert("אין לך הרשאה לדחות את הבקשה הזאת");
       return;
     }
 
-    if (activeSlot.status === "confirmed") {
-      alert("התור כבר נסגר. אם צריך, בטלי אותו או מחקי אותו.");
+    if (claimToReject.status === "approved") {
+      alert("אי אפשר לדחות בקשה שכבר אושרה");
       return;
     }
 
     const confirmed = window.confirm(
-      "לסמן את הלקוחה כדחויה ולפתוח את התור שוב?"
+      `לדחות את הבקשה של ${claimToReject.client_name}? התור יישאר פתוח לבקשות נוספות.`
     );
 
     if (!confirmed) return;
@@ -865,7 +904,7 @@ function App() {
     const { error: claimError } = await supabase
       .from("claims")
       .update({ status: "rejected" })
-      .eq("id", activeClaim.id);
+      .eq("id", claimToReject.id);
 
     if (claimError) {
       console.error(claimError);
@@ -874,19 +913,7 @@ function App() {
       return;
     }
 
-    const { error: slotError } = await supabase
-      .from("slots")
-      .update({ status: "open" })
-      .eq("id", activeSlot.id);
-
-    if (slotError) {
-      console.error(slotError);
-      alert("שגיאה בפתיחת התור מחדש");
-      setLoading(false);
-      return;
-    }
-
-    alert("הלקוחה נדחתה והתור נפתח מחדש");
+    alert("הבקשה נדחתה. התור עדיין פתוח לבקשות נוספות.");
 
     await loadDashboardStats(business.id);
 
@@ -912,7 +939,7 @@ function App() {
     }
 
     const confirmed = window.confirm(
-      "לבטל את התור? הוא יישאר בהיסטוריה, אבל לקוחות לא יוכלו לתפוס אותו."
+      "לבטל את התור? הוא יישאר בהיסטוריה, אבל לקוחות לא יוכלו לבקש אותו."
     );
 
     if (!confirmed) return;
@@ -932,6 +959,51 @@ function App() {
     }
 
     alert("התור בוטל");
+
+    await loadDashboardStats(business.id);
+
+    if (showHistory) {
+      await loadHistory();
+    } else {
+      await loadSlotFromUrl();
+    }
+
+    setLoading(false);
+  }
+
+  async function reopenSlot(slotToReopen?: Slot) {
+    if (!guardPaidAccess()) return;
+
+    const activeSlot = slotToReopen || slot;
+
+    if (!business || !activeSlot) return;
+
+    if (activeSlot.business_id !== business.id) {
+      alert("אין לך הרשאה לפתוח את התור הזה");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "לפתוח את התור שוב לבקשות? בקשות קיימות יישארו כמו שהן."
+    );
+
+    if (!confirmed) return;
+
+    setLoading(true);
+
+    const { error } = await supabase
+      .from("slots")
+      .update({ status: "open" })
+      .eq("id", activeSlot.id);
+
+    if (error) {
+      console.error(error);
+      alert("שגיאה בפתיחת התור");
+      setLoading(false);
+      return;
+    }
+
+    alert("התור נפתח שוב לבקשות");
 
     await loadDashboardStats(business.id);
 
@@ -991,7 +1063,8 @@ function App() {
     alert("התור נמחק מהמערכת");
 
     setSlot(null);
-    setClaim(null);
+    setClaims([]);
+    setClientClaim(null);
     setClientSubmitted(false);
 
     await loadDashboardStats(business.id);
@@ -1007,7 +1080,8 @@ function App() {
 
   function resetToDashboard() {
     setSlot(null);
-    setClaim(null);
+    setClaims([]);
+    setClientClaim(null);
     setHistory([]);
     setShowClientPage(false);
     setShowCreateSlot(false);
@@ -1032,16 +1106,16 @@ function App() {
     setShowEditBusiness(false);
     setShowEditSlot(false);
     setSlot(null);
-    setClaim(null);
+    setClaims([]);
+    setClientClaim(null);
     setClientSubmitted(false);
     window.history.pushState({}, "", "/");
   }
 
   function openSlotFromHistory(historySlot: HistoryItem) {
-    const latestClaim = historySlot.claims?.[0] || null;
-
     setSlot(historySlot);
-    setClaim(latestClaim);
+    setClaims(sortClaims(historySlot.claims || []));
+    setClientClaim(null);
     setShowHistory(false);
     setShowCreateSlot(false);
     setShowEditBusiness(false);
@@ -1053,8 +1127,8 @@ function App() {
   }
 
   function statusLabel(status: string) {
-    if (status === "open") return "פתוח לפרסום";
-    if (status === "claimed") return "ממתין לאישור";
+    if (status === "open") return "פתוח לבקשות";
+    if (status === "claimed") return "פתוח לבקשות";
     if (status === "confirmed") return "נסגר בהצלחה";
     if (status === "cancelled") return "בוטל";
     if (status === "approved") return "אושרה";
@@ -1064,23 +1138,23 @@ function App() {
   }
 
   function statusClass(status: string) {
-    if (status === "open") return "status-open";
-    if (status === "claimed" || status === "pending") return "status-requested";
+    if (status === "open" || status === "claimed") return "status-open";
+    if (status === "pending") return "status-requested";
     if (status === "confirmed" || status === "approved") return "status-confirmed";
     if (status === "cancelled" || status === "rejected") return "status-cancelled";
     return "status-open";
   }
 
   function buildClientToBusinessWhatsappLink() {
-    if (!slot || !claim) return "";
+    if (!slot || !clientClaim) return "";
 
     const targetPhone = normalizePhoneForWhatsapp(slot.business_phone);
     if (!targetPhone) return "";
 
     const message = `היי, ראיתי שהתפנה תור דרך תורפול.
 
-שם: ${claim.client_name}
-טלפון: ${claim.client_phone}
+שם: ${clientClaim.client_name}
+טלפון: ${clientClaim.client_phone}
 
 אני רוצה את התור:
 ${slot.service_name}
@@ -1097,15 +1171,14 @@ ${slot.price ? `מחיר: ${slot.price} ₪` : ""}
     claimToSend?: Claim | null,
     slotToSend?: Slot | null
   ) {
-    const activeClaim = claimToSend || claim;
     const activeSlot = slotToSend || slot;
 
-    if (!activeClaim || !activeSlot) return "";
+    if (!claimToSend || !activeSlot) return "";
 
-    const targetPhone = normalizePhoneForWhatsapp(activeClaim.client_phone);
+    const targetPhone = normalizePhoneForWhatsapp(claimToSend.client_phone);
     if (!targetPhone) return "";
 
-    const message = `היי ${activeClaim.client_name},
+    const message = `היי ${claimToSend.client_name},
 
 התור שלך אושר.
 
@@ -1124,15 +1197,14 @@ ${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
     claimToSend?: Claim | null,
     slotToSend?: Slot | null
   ) {
-    const activeClaim = claimToSend || claim;
     const activeSlot = slotToSend || slot;
 
-    if (!activeClaim || !activeSlot) return "";
+    if (!claimToSend || !activeSlot) return "";
 
-    const targetPhone = normalizePhoneForWhatsapp(activeClaim.client_phone);
+    const targetPhone = normalizePhoneForWhatsapp(claimToSend.client_phone);
     if (!targetPhone) return "";
 
-    const message = `היי ${activeClaim.client_name},
+    const message = `היי ${claimToSend.client_name},
 
 תודה שהשארת פרטים.
 התור הזה כבר לא מתאים או נתפס, אבל אעדכן אותך כשיתפנה תור חדש.
@@ -1149,15 +1221,14 @@ ${activeSlot.service_name}
     claimToSend?: Claim | null,
     slotToSend?: Slot | null
   ) {
-    const activeClaim = claimToSend || claim;
     const activeSlot = slotToSend || slot;
 
-    if (!activeClaim || !activeSlot) return "";
+    if (!claimToSend || !activeSlot) return "";
 
-    const targetPhone = normalizePhoneForWhatsapp(activeClaim.client_phone);
+    const targetPhone = normalizePhoneForWhatsapp(claimToSend.client_phone);
     if (!targetPhone) return "";
 
-    const message = `היי ${activeClaim.client_name},
+    const message = `היי ${claimToSend.client_name},
 
 לצערי התור שהתבקשת אליו בוטל.
 
@@ -1207,7 +1278,7 @@ ${link}
   function screenLabel() {
     if (authMode === "reset") return "איפוס סיסמה";
     if (accessStatus === "denied" && session) return "גישה למנויות בלבד";
-    if (isLandingPage) return "מילוי תורים שהתפנו";
+    if (isLandingPage) return "מערכת מילוי ביטולים";
     if (showHistory) return "היסטוריית תורים";
     if (showEditBusiness) return "הגדרות העסק";
     if (showCreateSlot) return "יצירת תור";
@@ -1219,9 +1290,6 @@ ${link}
   }
 
   const clientWhatsappLink = buildClientToBusinessWhatsappLink();
-  const approvalWhatsappLink = buildApprovalWhatsappLink();
-  const rejectionWhatsappLink = buildRejectionWhatsappLink();
-  const cancellationWhatsappLink = buildCancellationWhatsappLink();
 
   if (loading || (session && accessStatus === "checking")) {
     return (
@@ -1254,7 +1322,7 @@ ${link}
               <div className="brand-copy">
                 <div className="eyebrow">גישה למנויות בלבד</div>
                 <h1 className="brand-title">תורפול</h1>
-                <p className="brand-subtitle">תור מתבטל? תורפול ממלאה.</p>
+                <p className="brand-subtitle">תור שהתבטל? הופכים אותו להזדמנות.</p>
               </div>
             </div>
 
@@ -1275,10 +1343,10 @@ ${link}
               </p>
 
               <div className="hero-bullets">
-                <div className="mini-pill">גישה אישית לעסק</div>
                 <div className="mini-pill">יצירת תורים שהתפנו</div>
-                <div className="mini-pill">קבלת בקשות מלקוחות</div>
-                <div className="mini-pill">התראות על בקשות חדשות</div>
+                <div className="mini-pill">בקשות לקוחות מסודרות</div>
+                <div className="mini-pill">סגירה עם הלקוחה הנכונה</div>
+                <div className="mini-pill">מעקב הכנסה שחזרה</div>
               </div>
             </div>
 
@@ -1327,12 +1395,14 @@ ${link}
             <div className="brand-copy">
               <div className="eyebrow">{screenLabel()}</div>
               <h1 className="brand-title">תורפול</h1>
-              <p className="brand-subtitle">תור מתבטל? תורפול ממלאה.</p>
+              <p className="brand-subtitle">תור שהתבטל? הופכים אותו להזדמנות.</p>
             </div>
           </div>
 
           <div className="topbar-side">
-            <span className="header-chip">מילוי תורים שהתפנו דרך WhatsApp</span>
+            <span className="header-chip">
+              מערכת מילוי ביטולים ורשימת בקשות לעסקים קטנים
+            </span>
             {session && authMode !== "reset" && (
               <p className="topbar-business">
                 {business?.business_name
@@ -1393,18 +1463,18 @@ ${link}
             <section className="hero-card glass-card hero-grid">
               <div className="hero-copy">
                 <span className="section-kicker">פיילוט לעסקים ראשונים · 49 ₪</span>
-                <h2>ממלאים תורים שהתפנו בלי בלגן ובלי לרדוף אחרי לקוחות</h2>
+                <h2>הופכים ביטולים של הרגע האחרון לתורים סגורים</h2>
                 <p>
-                  תורפול עוזרת לבעלות קליניקות, קוסמטיקאיות ובעלות עסקי יופי
-                  להפוך ביטול של הרגע האחרון ללינק מסודר, בקשות מסודרות, וסגירה
-                  מהירה מול הלקוחה הנכונה.
+                  תורפול מרכזת את כל הבקשות לתור שהתפנה במקום אחד,
+                  עוזרת לך לבחור למי לאשר, ושומרת לך היסטוריה של הכנסה
+                  שחזרה ליומן.
                 </p>
 
                 <div className="hero-bullets">
-                  <div className="mini-pill">יוצרת תור בדקה</div>
-                  <div className="mini-pill">שולחת לינק מוכן ללקוחות</div>
-                  <div className="mini-pill">מקבלת בקשות מסודרות</div>
-                  <div className="mini-pill">סוגרת רק עם מי שמתאימה</div>
+                  <div className="mini-pill">לינק אחד במקום בלגן בהודעות</div>
+                  <div className="mini-pill">כל הבקשות במקום אחד</div>
+                  <div className="mini-pill">את בוחרת למי לאשר</div>
+                  <div className="mini-pill">תור אחד יכול להחזיר את כל המנוי</div>
                 </div>
               </div>
 
@@ -1519,21 +1589,40 @@ ${link}
             <section className="feature-grid">
               <article className="glass-card feature-card">
                 <div className="feature-icon">01</div>
-                <h3>יוצרת תור שהתפנה</h3>
-                <p>ממלאת טיפול, תאריך, שעה ומחיר — ומקבלת לינק מוכן.</p>
+                <h3>לינק אחד במקום בלגן</h3>
+                <p>
+                  מפרסמת תור שהתפנה ושולחת לינק מסודר לסטורי, WhatsApp או רשימת תפוצה.
+                </p>
               </article>
 
               <article className="glass-card feature-card">
                 <div className="feature-icon">02</div>
-                <h3>שולחת ב-WhatsApp</h3>
-                <p>מעתיקה הודעה מסודרת לרשימת תפוצה או ללקוחות רלוונטיות.</p>
+                <h3>כל הבקשות במקום אחד</h3>
+                <p>
+                  במקום עשר הודעות פרטיות, את רואה את כל מי שרוצה את התור במסך אחד.
+                </p>
               </article>
 
               <article className="glass-card feature-card">
                 <div className="feature-icon">03</div>
-                <h3>סוגרת עם הלקוחה</h3>
-                <p>מקבלת בקשות, בוחרת מי מתאימה, ושולחת אישור ישירות.</p>
+                <h3>את שולטת בסגירה</h3>
+                <p>
+                  התור לא נסגר אוטומטית. את מאשרת, דוחה, מבטלת או מוחקת.
+                </p>
               </article>
+            </section>
+
+            <section className="glass-card form-card">
+              <div className="card-head">
+                <span className="section-kicker">למה לא פשוט לשלוח הודעה?</span>
+                <h3>כי הודעה מביאה תגובות. תורפול מביאה סדר.</h3>
+              </div>
+
+              <p className="form-help">
+                במקום “אני רוצה”, “עדיין פנוי?”, “אפשר אותי?” בעשרות צ׳אטים —
+                את מקבלת רשימת בקשות מסודרת לתור אחד, עם סטטוס ברור ויכולת
+                לסגור מהר עם הלקוחה הנכונה.
+              </p>
             </section>
           </>
         )}
@@ -1632,8 +1721,8 @@ ${link}
               <section className="client-card glass-card success-card">
                 <h3>הבקשה נשלחה</h3>
                 <p>
-                  עכשיו אפשר לשלוח הודעת WhatsApp לבעלת העסק כדי שהיא תקבל את
-                  הבקשה מיד.
+                  בעלת העסק קיבלה את הפרטים במערכת. כדי לוודא שהיא תראה את זה מיד,
+                  אפשר לשלוח לה גם WhatsApp.
                 </p>
 
                 {clientWhatsappLink && (
@@ -1670,6 +1759,9 @@ ${link}
               slot.status !== "confirmed" && (
                 <section className="client-card glass-card">
                   <h3>השאירי פרטים כדי לבקש את התור</h3>
+                  <p className="form-help">
+                    יכול להיות שגם לקוחות נוספות יבקשו את התור. בעלת העסק תבחר למי לאשר.
+                  </p>
 
                   <form className="form-grid" onSubmit={handleClaimSlot}>
                     <label className="field">
@@ -1709,6 +1801,7 @@ ${link}
                 </p>
 
                 <div className="hero-bullets">
+                  <div className="mini-pill">פתוח = אפשר לקבל עוד בקשות</div>
                   <div className="mini-pill">נסגר = התור נתפס</div>
                   <div className="mini-pill">בוטל = התור לא זמין</div>
                   <div className="mini-pill">מחיקה = הסרה מלאה</div>
@@ -1728,7 +1821,7 @@ ${link}
 
                 <div className="stat-card">
                   <strong>{pendingCount}</strong>
-                  <span>ממתינים לאישור</span>
+                  <span>בקשות שממתינות</span>
                 </div>
 
                 <div className="stat-card">
@@ -1785,24 +1878,24 @@ ${link}
                   <div className="flow-item">
                     <span className="flow-number">2</span>
                     <div>
-                      <strong>שולחת לינק ללקוחות</strong>
-                      <p>המערכת מכינה לך קישור מוכן להפצה.</p>
+                      <strong>שולחת לינק אחד</strong>
+                      <p>לסטורי, WhatsApp או רשימת תפוצה.</p>
                     </div>
                   </div>
 
                   <div className="flow-item">
                     <span className="flow-number">3</span>
                     <div>
-                      <strong>מקבלת בקשות</strong>
-                      <p>כל הלקוחות נשמרות מסודר במקום אחד.</p>
+                      <strong>מקבלת בקשות מסודרות</strong>
+                      <p>כמה לקוחות יכולות לבקש, ואת רואה את כולן במקום אחד.</p>
                     </div>
                   </div>
 
                   <div className="flow-item">
                     <span className="flow-number">4</span>
                     <div>
-                      <strong>סוגרת או מבטלת</strong>
-                      <p>בחירה ברורה בין סגירה, ביטול או מחיקה מלאה.</p>
+                      <strong>סוגרת עם הלקוחה הנכונה</strong>
+                      <p>מאשרת אחת, והשאר מסומנות כנדחו.</p>
                     </div>
                   </div>
                 </div>
@@ -1934,16 +2027,10 @@ ${link}
             ) : (
               <div className="history-list">
                 {history.map((item) => {
-                  const latestClaim = item.claims?.[0] || null;
-                  const approvalLink = latestClaim
-                    ? buildApprovalWhatsappLink(latestClaim, item)
-                    : "";
-                  const rejectionLink = latestClaim
-                    ? buildRejectionWhatsappLink(latestClaim, item)
-                    : "";
-                  const cancellationLink = latestClaim
-                    ? buildCancellationWhatsappLink(latestClaim, item)
-                    : "";
+                  const itemClaims = sortClaims(item.claims || []);
+                  const pendingItemClaims = itemClaims.filter(
+                    (itemClaim) => itemClaim.status === "pending"
+                  );
 
                   return (
                     <article className="history-card glass-card" key={item.id}>
@@ -1961,25 +2048,110 @@ ${link}
                         </span>
                       </div>
 
-                      {latestClaim ? (
+                      {itemClaims.length > 0 ? (
                         <div className="request-box">
-                          <div className="request-title">בקשת לקוחה אחרונה</div>
-
-                          <div className="request-grid">
-                            <div>
-                              <span>שם</span>
-                              <strong>{latestClaim.client_name}</strong>
-                            </div>
-
-                            <div>
-                              <span>טלפון</span>
-                              <strong>{latestClaim.client_phone}</strong>
-                            </div>
+                          <div className="request-title">
+                            בקשות לתור ({itemClaims.length})
                           </div>
 
-                          <div className="request-note">
-                            <span>סטטוס</span>
-                            <p>{statusLabel(latestClaim.status)}</p>
+                          <div className="request-list">
+                            {itemClaims.map((itemClaim) => {
+                              const approvalLink = buildApprovalWhatsappLink(
+                                itemClaim,
+                                item
+                              );
+                              const rejectionLink = buildRejectionWhatsappLink(
+                                itemClaim,
+                                item
+                              );
+                              const cancellationLink = buildCancellationWhatsappLink(
+                                itemClaim,
+                                item
+                              );
+
+                              return (
+                                <div className="request-item" key={itemClaim.id}>
+                                  <div className="request-grid">
+                                    <div>
+                                      <span>שם</span>
+                                      <strong>{itemClaim.client_name}</strong>
+                                    </div>
+
+                                    <div>
+                                      <span>טלפון</span>
+                                      <strong>{itemClaim.client_phone}</strong>
+                                    </div>
+
+                                    <div>
+                                      <span>סטטוס</span>
+                                      <strong>{statusLabel(itemClaim.status)}</strong>
+                                    </div>
+                                  </div>
+
+                                  <div className="action-row">
+                                    {itemClaim.status === "pending" &&
+                                      item.status !== "confirmed" &&
+                                      item.status !== "cancelled" && (
+                                        <button
+                                          className="btn btn-success btn-small"
+                                          onClick={() => approveClaim(itemClaim, item)}
+                                        >
+                                          סגרי איתה
+                                        </button>
+                                      )}
+
+                                    {itemClaim.status === "pending" &&
+                                      item.status !== "confirmed" &&
+                                      item.status !== "cancelled" && (
+                                        <button
+                                          className="btn btn-secondary btn-small"
+                                          onClick={() => rejectClaim(itemClaim, item)}
+                                        >
+                                          דחי בקשה
+                                        </button>
+                                      )}
+
+                                    {itemClaim.status === "pending" &&
+                                      item.status !== "confirmed" &&
+                                      item.status !== "cancelled" &&
+                                      rejectionLink && (
+                                        <a
+                                          className="btn btn-secondary btn-small"
+                                          href={rejectionLink}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                        >
+                                          הודעת דחייה
+                                        </a>
+                                      )}
+
+                                    {itemClaim.status === "approved" &&
+                                      approvalLink &&
+                                      item.status !== "cancelled" && (
+                                        <a
+                                          className="btn btn-success btn-small"
+                                          href={approvalLink}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                        >
+                                          הודעת אישור
+                                        </a>
+                                      )}
+
+                                    {item.status === "cancelled" && cancellationLink && (
+                                      <a
+                                        className="btn btn-secondary btn-small"
+                                        href={cancellationLink}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                      >
+                                        הודעת ביטול
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       ) : (
@@ -2008,63 +2180,16 @@ ${link}
                           הודעת WhatsApp
                         </button>
 
-                        {latestClaim &&
-                          latestClaim.status !== "approved" &&
-                          item.status !== "confirmed" &&
-                          item.status !== "cancelled" && (
-                            <button
-                              className="btn btn-success"
-                              onClick={() => approveClaim(latestClaim, item)}
-                            >
-                              סגרי עם הלקוחה
-                            </button>
-                          )}
+                        {item.status === "cancelled" && (
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => reopenSlot(item)}
+                          >
+                            פתחי מחדש
+                          </button>
+                        )}
 
-                        {latestClaim &&
-                          latestClaim.status !== "approved" &&
-                          latestClaim.status !== "rejected" &&
-                          item.status !== "confirmed" &&
-                          item.status !== "cancelled" && (
-                            <button
-                              className="btn btn-secondary"
-                              onClick={() => rejectClaim(latestClaim, item)}
-                            >
-                              דחי ושחררי תור
-                            </button>
-                          )}
-
-                        {latestClaim &&
-                          latestClaim.status !== "approved" &&
-                          latestClaim.status !== "rejected" &&
-                          item.status !== "confirmed" &&
-                          item.status !== "cancelled" &&
-                          rejectionLink && (
-                            <a
-                              className="btn btn-secondary"
-                              href={rejectionLink}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              שלחי הודעת דחייה
-                            </a>
-                          )}
-
-                        {latestClaim &&
-                          (latestClaim.status === "approved" ||
-                            item.status === "confirmed") &&
-                          approvalLink &&
-                          item.status !== "cancelled" && (
-                            <a
-                              className="btn btn-success"
-                              href={approvalLink}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              שלחי הודעת אישור
-                            </a>
-                          )}
-
-                        {item.status !== "cancelled" && (
+                        {item.status !== "cancelled" && item.status !== "confirmed" && (
                           <button
                             className="btn btn-warning"
                             onClick={() => cancelSlot(item)}
@@ -2073,19 +2198,6 @@ ${link}
                           </button>
                         )}
 
-                        {latestClaim &&
-                          item.status === "cancelled" &&
-                          cancellationLink && (
-                            <a
-                              className="btn btn-secondary"
-                              href={cancellationLink}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              שלחי הודעת ביטול
-                            </a>
-                          )}
-
                         <button
                           className="btn btn-danger"
                           onClick={() => deleteSlot(item)}
@@ -2093,6 +2205,15 @@ ${link}
                           מחיקה מלאה
                         </button>
                       </div>
+
+                      {pendingItemClaims.length > 1 &&
+                        item.status !== "confirmed" &&
+                        item.status !== "cancelled" && (
+                          <p className="form-help">
+                            יש כמה בקשות ממתינות. בחרי לקוחה אחת לסגירה, והשאר
+                            יסומנו כנדחו אוטומטית.
+                          </p>
+                        )}
                     </article>
                   );
                 })}
@@ -2205,26 +2326,116 @@ ${link}
                   </div>
                 </div>
 
-                {claim && (
+                {claims.length > 0 ? (
                   <div className="request-box">
-                    <div className="request-title">בקשת לקוחה</div>
+                    <div className="request-title">בקשות לתור ({claims.length})</div>
 
-                    <div className="request-grid">
-                      <div>
-                        <span>שם</span>
-                        <strong>{claim.client_name}</strong>
-                      </div>
+                    <div className="request-list">
+                      {claims.map((itemClaim) => {
+                        const approvalLink = buildApprovalWhatsappLink(
+                          itemClaim,
+                          slot
+                        );
+                        const rejectionLink = buildRejectionWhatsappLink(
+                          itemClaim,
+                          slot
+                        );
+                        const cancellationLink = buildCancellationWhatsappLink(
+                          itemClaim,
+                          slot
+                        );
 
-                      <div>
-                        <span>טלפון</span>
-                        <strong>{claim.client_phone}</strong>
-                      </div>
+                        return (
+                          <div className="request-item" key={itemClaim.id}>
+                            <div className="request-grid">
+                              <div>
+                                <span>שם</span>
+                                <strong>{itemClaim.client_name}</strong>
+                              </div>
+
+                              <div>
+                                <span>טלפון</span>
+                                <strong>{itemClaim.client_phone}</strong>
+                              </div>
+
+                              <div>
+                                <span>סטטוס</span>
+                                <strong>{statusLabel(itemClaim.status)}</strong>
+                              </div>
+                            </div>
+
+                            <div className="action-row">
+                              {itemClaim.status === "pending" &&
+                                slot.status !== "confirmed" &&
+                                slot.status !== "cancelled" && (
+                                  <button
+                                    className="btn btn-success btn-small"
+                                    onClick={() => approveClaim(itemClaim)}
+                                  >
+                                    סגרי איתה
+                                  </button>
+                                )}
+
+                              {itemClaim.status === "pending" &&
+                                slot.status !== "confirmed" &&
+                                slot.status !== "cancelled" && (
+                                  <button
+                                    className="btn btn-secondary btn-small"
+                                    onClick={() => rejectClaim(itemClaim)}
+                                  >
+                                    דחי בקשה
+                                  </button>
+                                )}
+
+                              {itemClaim.status === "pending" &&
+                                slot.status !== "confirmed" &&
+                                slot.status !== "cancelled" &&
+                                rejectionLink && (
+                                  <a
+                                    className="btn btn-secondary btn-small"
+                                    href={rejectionLink}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    הודעת דחייה
+                                  </a>
+                                )}
+
+                              {itemClaim.status === "approved" &&
+                                approvalLink &&
+                                slot.status !== "cancelled" && (
+                                  <a
+                                    className="btn btn-success btn-small"
+                                    href={approvalLink}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    הודעת אישור
+                                  </a>
+                                )}
+
+                              {slot.status === "cancelled" && cancellationLink && (
+                                <a
+                                  className="btn btn-secondary btn-small"
+                                  href={cancellationLink}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  הודעת ביטול
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-
-                    <div className="request-note">
-                      <span>סטטוס</span>
-                      <p>{statusLabel(claim.status)}</p>
-                    </div>
+                  </div>
+                ) : (
+                  <div className="request-box">
+                    <div className="request-title">אין עדיין בקשות</div>
+                    <p className="form-help">
+                      שלחי את הלינק ללקוחות. כל מי שתבקש את התור תופיע כאן.
+                    </p>
                   </div>
                 )}
 
@@ -2236,84 +2447,25 @@ ${link}
                     הודעת WhatsApp לרשימת תפוצה
                   </button>
 
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => setShowEditSlot(true)}
-                  >
-                    ערכי תור
-                  </button>
-
-                  {claim &&
-                    claim.status !== "approved" &&
-                    claim.status !== "rejected" &&
-                    slot.status !== "confirmed" &&
-                    slot.status !== "cancelled" && (
-                      <button
-                        className="btn btn-success"
-                        onClick={() => approveClaim()}
-                      >
-                        סגרי עם הלקוחה
-                      </button>
-                    )}
-
-                  {claim &&
-                    claim.status !== "approved" &&
-                    claim.status !== "rejected" &&
-                    slot.status !== "confirmed" &&
-                    slot.status !== "cancelled" && (
-                      <button
-                        className="btn btn-secondary"
-                        onClick={() => rejectClaim()}
-                      >
-                        דחי ושחררי תור
-                      </button>
-                    )}
-
-                  {claim &&
-                    claim.status !== "approved" &&
-                    claim.status !== "rejected" &&
-                    slot.status !== "confirmed" &&
-                    slot.status !== "cancelled" &&
-                    rejectionWhatsappLink && (
-                      <a
-                        className="btn btn-secondary"
-                        href={rejectionWhatsappLink}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        שלחי הודעת דחייה
-                      </a>
-                    )}
-
-                  {claim &&
-                    (claim.status === "approved" || slot.status === "confirmed") &&
-                    approvalWhatsappLink &&
-                    slot.status !== "cancelled" && (
-                      <a
-                        className="btn btn-success"
-                        href={approvalWhatsappLink}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        שלחי הודעת אישור
-                      </a>
-                    )}
-
-                  {slot.status !== "cancelled" && (
-                    <button className="btn btn-warning" onClick={() => cancelSlot()}>
-                      בטלי תור
+                  {slot.status !== "confirmed" && slot.status !== "cancelled" && (
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => setShowEditSlot(true)}
+                    >
+                      ערכי תור
                     </button>
                   )}
 
-                  {claim && slot.status === "cancelled" && cancellationWhatsappLink && (
-                    <a
-                      className="btn btn-secondary"
-                      href={cancellationWhatsappLink}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      שלחי הודעת ביטול
-                    </a>
+                  {slot.status === "cancelled" && (
+                    <button className="btn btn-secondary" onClick={() => reopenSlot()}>
+                      פתחי מחדש
+                    </button>
+                  )}
+
+                  {slot.status !== "cancelled" && slot.status !== "confirmed" && (
+                    <button className="btn btn-warning" onClick={() => cancelSlot()}>
+                      בטלי תור
+                    </button>
                   )}
 
                   <button className="btn btn-danger" onClick={() => deleteSlot()}>
