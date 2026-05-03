@@ -49,6 +49,7 @@ function normalizePhoneForWhatsapp(phone: string | null | undefined) {
 
 function formatDate(date: string) {
   if (!date) return "";
+
   try {
     return new Date(date).toLocaleDateString("he-IL", {
       year: "numeric",
@@ -78,7 +79,9 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [business, setBusiness] = useState<Business | null>(null);
 
-  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [authMode, setAuthMode] = useState<
+    "login" | "register" | "forgot" | "reset"
+  >("login");
 
   const [slot, setSlot] = useState<Slot | null>(null);
   const [claim, setClaim] = useState<Claim | null>(null);
@@ -119,9 +122,15 @@ function App() {
   useEffect(() => {
     startApp();
 
-    const { data } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
+
+      if (event === "PASSWORD_RECOVERY") {
+        setAuthMode("reset");
+        setLoading(false);
+        return;
+      }
 
       if (newSession?.user) {
         loadBusiness(newSession.user.id);
@@ -145,12 +154,16 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const slotId = params.get("slot");
 
+    if (window.location.hash.includes("type=recovery")) {
+      setAuthMode("reset");
+    }
+
     const { data } = await supabase.auth.getSession();
 
     setSession(data.session);
     setUser(data.session?.user ?? null);
 
-    if (data.session?.user) {
+    if (data.session?.user && !window.location.hash.includes("type=recovery")) {
       await loadBusiness(data.session.user.id);
     }
 
@@ -285,6 +298,79 @@ function App() {
       setSession(data.session);
       setUser(data.user);
     }
+
+    setLoading(false);
+  }
+
+  async function handleForgotPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") || "");
+
+    if (!email) {
+      alert("צריך להזין אימייל");
+      return;
+    }
+
+    setLoading(true);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+
+    if (error) {
+      console.error(error);
+      alert("לא הצלחתי לשלוח קישור איפוס. בדקי שהאימייל נכון.");
+      setLoading(false);
+      return;
+    }
+
+    alert("שלחנו לך קישור לאיפוס סיסמה במייל");
+    setAuthMode("login");
+    setLoading(false);
+  }
+
+  async function handleUpdatePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const form = new FormData(event.currentTarget);
+    const password = String(form.get("password") || "");
+    const confirmPassword = String(form.get("confirmPassword") || "");
+
+    if (password.length < 6) {
+      alert("הסיסמה חייבת להיות לפחות 6 תווים");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      alert("הסיסמאות לא תואמות");
+      return;
+    }
+
+    setLoading(true);
+
+    const { error } = await supabase.auth.updateUser({
+      password,
+    });
+
+    if (error) {
+      console.error(error);
+      alert("לא הצלחתי לעדכן סיסמה. נסי לפתוח שוב את הקישור מהמייל.");
+      setLoading(false);
+      return;
+    }
+
+    alert("הסיסמה עודכנה בהצלחה. אפשר להתחבר עכשיו.");
+
+    await supabase.auth.signOut();
+
+    setSession(null);
+    setUser(null);
+    setBusiness(null);
+    setAuthMode("login");
+
+    window.history.pushState({}, "", "/");
 
     setLoading(false);
   }
@@ -989,6 +1075,7 @@ ${link}
   }
 
   function screenLabel() {
+    if (authMode === "reset") return "איפוס סיסמה";
     if (isLandingPage) return "מילוי תורים שהתפנו";
     if (showHistory) return "היסטוריית תורים";
     if (showEditBusiness) return "הגדרות העסק";
@@ -1033,7 +1120,7 @@ ${link}
 
           <div className="topbar-side">
             <span className="header-chip">מילוי תורים שהתפנו דרך WhatsApp</span>
-            {session && (
+            {session && authMode !== "reset" && (
               <p className="topbar-business">
                 {business?.business_name
                   ? `מחוברת לעסק: ${business.business_name}`
@@ -1043,7 +1130,54 @@ ${link}
           </div>
         </header>
 
-        {!session && !slot && (
+        {authMode === "reset" && (
+          <section className="hero-card glass-card hero-grid">
+            <div className="hero-copy">
+              <span className="section-kicker">סיסמה חדשה</span>
+              <h2>הגדירי סיסמה חדשה לחשבון</h2>
+              <p>
+                בחרי סיסמה חדשה. אחרי העדכון תועברי חזרה למסך ההתחברות.
+              </p>
+            </div>
+
+            <div className="form-card glass-card accent-card">
+              <div className="card-head">
+                <span className="section-kicker">איפוס סיסמה</span>
+                <h3>סיסמה חדשה</h3>
+              </div>
+
+              <form className="form-grid" onSubmit={handleUpdatePassword}>
+                <label className="field field-full">
+                  <span>סיסמה חדשה</span>
+                  <input
+                    name="password"
+                    type="password"
+                    placeholder="לפחות 6 תווים"
+                    required
+                  />
+                </label>
+
+                <label className="field field-full">
+                  <span>אימות סיסמה</span>
+                  <input
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="הקלידי שוב את הסיסמה"
+                    required
+                  />
+                </label>
+
+                <div className="field-full form-actions">
+                  <button className="btn btn-primary" type="submit">
+                    עדכני סיסמה
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+        )}
+
+        {authMode !== "reset" && !session && !slot && (
           <>
             <section className="hero-card glass-card hero-grid">
               <div className="hero-copy">
@@ -1066,56 +1200,108 @@ ${link}
               <div className="form-card glass-card accent-card">
                 <div className="card-head">
                   <span className="section-kicker">
-                    {authMode === "login" ? "כניסה למערכת" : "פתיחת חשבון"}
+                    {authMode === "login" && "כניסה למערכת"}
+                    {authMode === "register" && "פתיחת חשבון"}
+                    {authMode === "forgot" && "איפוס סיסמה"}
                   </span>
+
                   <h3>
-                    {authMode === "login"
-                      ? "התחברי לדשבורד שלך"
-                      : "פתחי חשבון חדש"}
+                    {authMode === "login" && "התחברי לדשבורד שלך"}
+                    {authMode === "register" && "פתחי חשבון חדש"}
+                    {authMode === "forgot" && "שכחת סיסמה?"}
                   </h3>
                 </div>
 
-                <form className="form-grid" onSubmit={handleAuth}>
-                  <label className="field field-full">
-                    <span>אימייל</span>
-                    <input
-                      name="email"
-                      type="email"
-                      placeholder="you@example.com"
-                      required
-                    />
-                  </label>
+                {(authMode === "login" || authMode === "register") && (
+                  <>
+                    <form className="form-grid" onSubmit={handleAuth}>
+                      <label className="field field-full">
+                        <span>אימייל</span>
+                        <input
+                          name="email"
+                          type="email"
+                          placeholder="you@example.com"
+                          required
+                        />
+                      </label>
 
-                  <label className="field field-full">
-                    <span>סיסמה</span>
-                    <input
-                      name="password"
-                      type="password"
-                      placeholder="לפחות 6 תווים"
-                      required
-                    />
-                  </label>
+                      <label className="field field-full">
+                        <span>סיסמה</span>
+                        <input
+                          name="password"
+                          type="password"
+                          placeholder="לפחות 6 תווים"
+                          required
+                        />
+                      </label>
 
-                  <div className="field-full form-actions">
-                    <button className="btn btn-primary" type="submit">
-                      {authMode === "login" ? "התחברי" : "צרי משתמש"}
-                    </button>
-                  </div>
-                </form>
+                      <div className="field-full form-actions">
+                        <button className="btn btn-primary" type="submit">
+                          {authMode === "login" ? "התחברי" : "צרי משתמש"}
+                        </button>
+                      </div>
+                    </form>
 
-                <div className="action-row">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() =>
-                      setAuthMode(authMode === "login" ? "register" : "login")
-                    }
-                  >
-                    {authMode === "login"
-                      ? "אין לך משתמש? הרשמי כאן"
-                      : "כבר יש לך משתמש? התחברי"}
-                  </button>
-                </div>
+                    <div className="auth-links">
+                      <button
+                        type="button"
+                        className="text-button"
+                        onClick={() =>
+                          setAuthMode(authMode === "login" ? "register" : "login")
+                        }
+                      >
+                        {authMode === "login"
+                          ? "אין לך משתמש? הרשמי כאן"
+                          : "כבר יש לך משתמש? התחברי"}
+                      </button>
+
+                      {authMode === "login" && (
+                        <button
+                          type="button"
+                          className="text-button"
+                          onClick={() => setAuthMode("forgot")}
+                        >
+                          שכחת סיסמה?
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {authMode === "forgot" && (
+                  <>
+                    <p className="form-help">
+                      הכניסי את האימייל שאיתו נרשמת, ונשלח לך קישור לאיפוס
+                      הסיסמה.
+                    </p>
+
+                    <form className="form-grid" onSubmit={handleForgotPassword}>
+                      <label className="field field-full">
+                        <span>אימייל</span>
+                        <input
+                          name="email"
+                          type="email"
+                          placeholder="you@example.com"
+                          required
+                        />
+                      </label>
+
+                      <div className="field-full form-actions">
+                        <button className="btn btn-primary" type="submit">
+                          שלחי קישור לאיפוס
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => setAuthMode("login")}
+                        >
+                          חזרה להתחברות
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                )}
               </div>
             </section>
 
@@ -1141,7 +1327,7 @@ ${link}
           </>
         )}
 
-        {session && !business && !slot && (
+        {session && !business && !slot && authMode !== "reset" && (
           <section className="form-card glass-card">
             <div className="card-head">
               <span className="section-kicker">הקמת עסק</span>
@@ -1160,11 +1346,7 @@ ${link}
 
               <label className="field">
                 <span>טלפון WhatsApp של העסק</span>
-                <input
-                  name="phone"
-                  placeholder="0501234567"
-                  required
-                />
+                <input name="phone" placeholder="0501234567" required />
               </label>
 
               <div className="field-full form-actions">
@@ -1176,7 +1358,7 @@ ${link}
           </section>
         )}
 
-        {slot && showClientPage && (
+        {slot && showClientPage && authMode !== "reset" && (
           <>
             <section className="client-hero glass-card">
               <div className="hero-copy">
@@ -1275,11 +1457,7 @@ ${link}
 
                     <label className="field">
                       <span>טלפון</span>
-                      <input
-                        name="clientPhone"
-                        placeholder="0501234567"
-                        required
-                      />
+                      <input name="clientPhone" placeholder="0501234567" required />
                     </label>
 
                     <div className="field-full form-actions">
@@ -1293,7 +1471,7 @@ ${link}
           </>
         )}
 
-        {isDashboardPage && business && (
+        {isDashboardPage && business && authMode !== "reset" && (
           <>
             <section className="hero-card glass-card hero-grid dashboard-hero">
               <div className="hero-copy">
@@ -1407,7 +1585,7 @@ ${link}
           </>
         )}
 
-        {showEditBusiness && business && (
+        {showEditBusiness && business && authMode !== "reset" && (
           <section className="form-card glass-card">
             <div className="card-head">
               <span className="section-kicker">הגדרות העסק</span>
@@ -1426,11 +1604,7 @@ ${link}
 
               <label className="field">
                 <span>טלפון WhatsApp</span>
-                <input
-                  name="phone"
-                  defaultValue={business.phone || ""}
-                  required
-                />
+                <input name="phone" defaultValue={business.phone || ""} required />
               </label>
 
               <div className="field-full form-actions">
@@ -1450,7 +1624,7 @@ ${link}
           </section>
         )}
 
-        {showCreateSlot && business && (
+        {showCreateSlot && business && authMode !== "reset" && (
           <section className="form-card glass-card">
             <div className="card-head">
               <span className="section-kicker">תור חדש</span>
@@ -1469,11 +1643,7 @@ ${link}
 
               <label className="field">
                 <span>מחיר</span>
-                <input
-                  name="price"
-                  type="number"
-                  placeholder="לדוגמה: 350"
-                />
+                <input name="price" type="number" placeholder="לדוגמה: 350" />
               </label>
 
               <label className="field">
@@ -1511,7 +1681,7 @@ ${link}
           </section>
         )}
 
-        {showHistory && business && (
+        {showHistory && business && authMode !== "reset" && (
           <section className="section-block">
             <div className="section-head">
               <span className="section-kicker">היסטוריה</span>
@@ -1705,7 +1875,7 @@ ${link}
           </section>
         )}
 
-        {slot && !showClientPage && !showHistory && isOwnerView && (
+        {slot && !showClientPage && !showHistory && isOwnerView && authMode !== "reset" && (
           <section className="slot-card glass-card">
             <div className="slot-card-head">
               <div>
@@ -1735,11 +1905,7 @@ ${link}
 
                 <label className="field">
                   <span>מחיר</span>
-                  <input
-                    name="price"
-                    type="number"
-                    defaultValue={slot.price || ""}
-                  />
+                  <input name="price" type="number" defaultValue={slot.price || ""} />
                 </label>
 
                 <label className="field">
@@ -1884,8 +2050,7 @@ ${link}
                     )}
 
                   {claim &&
-                    (claim.status === "approved" ||
-                      slot.status === "confirmed") &&
+                    (claim.status === "approved" || slot.status === "confirmed") &&
                     approvalWhatsappLink &&
                     slot.status !== "cancelled" && (
                       <a
@@ -1899,31 +2064,23 @@ ${link}
                     )}
 
                   {slot.status !== "cancelled" && (
-                    <button
-                      className="btn btn-warning"
-                      onClick={() => cancelSlot()}
-                    >
+                    <button className="btn btn-warning" onClick={() => cancelSlot()}>
                       בטלי תור
                     </button>
                   )}
 
-                  {claim &&
-                    slot.status === "cancelled" &&
-                    cancellationWhatsappLink && (
-                      <a
-                        className="btn btn-secondary"
-                        href={cancellationWhatsappLink}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        שלחי הודעת ביטול
-                      </a>
-                    )}
+                  {claim && slot.status === "cancelled" && cancellationWhatsappLink && (
+                    <a
+                      className="btn btn-secondary"
+                      href={cancellationWhatsappLink}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      שלחי הודעת ביטול
+                    </a>
+                  )}
 
-                  <button
-                    className="btn btn-danger"
-                    onClick={() => deleteSlot()}
-                  >
+                  <button className="btn btn-danger" onClick={() => deleteSlot()}>
                     מחיקה מלאה
                   </button>
 
@@ -1940,7 +2097,7 @@ ${link}
           </section>
         )}
 
-        {slot && !showClientPage && !showHistory && !isOwnerView && (
+        {slot && !showClientPage && !showHistory && !isOwnerView && authMode !== "reset" && (
           <section className="client-card glass-card">
             <h3>הבקשה התקבלה ✅</h3>
             <p>בעלת העסק קיבלה את הפרטים ותחזור אלייך לאישור.</p>
