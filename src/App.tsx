@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "./lib/supabase";
 import type { Session, User } from "@supabase/supabase-js";
 
@@ -178,10 +178,7 @@ function App() {
     ? `${window.location.origin}/?business=${business.id}&view=waitlist`
     : "";
 
-  const openClaims = useMemo(
-    () => claims.filter((claim) => claim.status === "pending"),
-    [claims]
-  );
+ 
 
   useEffect(() => {
     startApp();
