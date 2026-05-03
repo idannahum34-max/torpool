@@ -67,6 +67,17 @@ function formatTime(time: string) {
   return time.slice(0, 5);
 }
 
+const emoji = {
+  heart: "\u{1F90D}",
+  mail: "\u{1F48C}",
+  check: "\u2705",
+  calendar: "\u{1F4C5}",
+  clock: "\u{1F550}",
+  money: "\u{1F4B0}",
+  sparkle: "\u2728",
+  pray: "\u{1F64F}",
+};
+
 function LogoMark() {
   return (
     <div className="logo-mark" aria-label="TorPool logo">
@@ -576,7 +587,7 @@ function App() {
     clientName: string,
     clientPhone: string
   ) {
-    const { error } = await supabase.functions.invoke("send-claim-email", {
+    const { data, error } = await supabase.functions.invoke("send-claim-email", {
       body: {
         slotId,
         clientName,
@@ -586,7 +597,10 @@ function App() {
 
     if (error) {
       console.error("Email notification failed:", error);
+      return;
     }
+
+    console.log("Email notification result:", data);
   }
 
   async function handleClaimSlot(event: FormEvent<HTMLFormElement>) {
@@ -733,7 +747,7 @@ function App() {
       return;
     }
 
-    alert("התור נסגר בהצלחה ✅");
+    alert("התור נסגר בהצלחה");
 
     await loadDashboardStats(business.id);
 
@@ -979,18 +993,18 @@ function App() {
     const targetPhone = normalizePhoneForWhatsapp(slot.business_phone);
     if (!targetPhone) return "";
 
-    const message = `היי, ראיתי שהתפנה תור דרך תורפול 💌
+    const message = `היי, ראיתי שהתפנה תור דרך תורפול ${emoji.mail}
 
 שם: ${claim.client_name}
 טלפון: ${claim.client_phone}
 
 אני רוצה את התור:
 ${slot.service_name}
-תאריך: ${formatDate(slot.slot_date)}
-שעה: ${formatTime(slot.slot_time)}
-${slot.price ? `מחיר: ${slot.price} ₪` : ""}
+${emoji.calendar} תאריך: ${formatDate(slot.slot_date)}
+${emoji.clock} שעה: ${formatTime(slot.slot_time)}
+${slot.price ? `${emoji.money} מחיר: ${slot.price} ₪` : ""}
 
-השארתי פרטים באתר ומחכה לאישור 🙏`;
+השארתי פרטים באתר ומחכה לאישור ${emoji.pray}`;
 
     return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
   }
@@ -1007,17 +1021,17 @@ ${slot.price ? `מחיר: ${slot.price} ₪` : ""}
     const targetPhone = normalizePhoneForWhatsapp(activeClaim.client_phone);
     if (!targetPhone) return "";
 
-    const message = `היי ${activeClaim.client_name} 🤍
+    const message = `היי ${activeClaim.client_name} ${emoji.heart}
 
-התור שלך אושר ✅
+התור שלך אושר ${emoji.check}
 
 פרטי התור:
 ${activeSlot.service_name}
-תאריך: ${formatDate(activeSlot.slot_date)}
-שעה: ${formatTime(activeSlot.slot_time)}
-${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
+${emoji.calendar} תאריך: ${formatDate(activeSlot.slot_date)}
+${emoji.clock} שעה: ${formatTime(activeSlot.slot_time)}
+${activeSlot.price ? `${emoji.money} מחיר: ${activeSlot.price} ₪` : ""}
 
-נתראה 🙏`;
+נתראה ${emoji.sparkle}`;
 
     return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
   }
@@ -1034,15 +1048,15 @@ ${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
     const targetPhone = normalizePhoneForWhatsapp(activeClaim.client_phone);
     if (!targetPhone) return "";
 
-    const message = `היי ${activeClaim.client_name} 🤍
+    const message = `היי ${activeClaim.client_name} ${emoji.heart}
 
 תודה שהשארת פרטים.
-התור הזה כבר לא מתאים / נתפס, אבל אעדכן אותך כשיתפנה תור חדש 🙏
+התור הזה כבר לא מתאים או נתפס, אבל אעדכן אותך כשיתפנה תור חדש ${emoji.pray}
 
 פרטי התור:
 ${activeSlot.service_name}
-תאריך: ${formatDate(activeSlot.slot_date)}
-שעה: ${formatTime(activeSlot.slot_time)}`;
+${emoji.calendar} תאריך: ${formatDate(activeSlot.slot_date)}
+${emoji.clock} שעה: ${formatTime(activeSlot.slot_time)}`;
 
     return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
   }
@@ -1059,17 +1073,17 @@ ${activeSlot.service_name}
     const targetPhone = normalizePhoneForWhatsapp(activeClaim.client_phone);
     if (!targetPhone) return "";
 
-    const message = `היי ${activeClaim.client_name} 🤍
+    const message = `היי ${activeClaim.client_name} ${emoji.heart}
 
 לצערי התור שהתבקשת אליו בוטל.
 
 פרטי התור:
 ${activeSlot.service_name}
-תאריך: ${formatDate(activeSlot.slot_date)}
-שעה: ${formatTime(activeSlot.slot_time)}
-${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
+${emoji.calendar} תאריך: ${formatDate(activeSlot.slot_date)}
+${emoji.clock} שעה: ${formatTime(activeSlot.slot_time)}
+${activeSlot.price ? `${emoji.money} מחיר: ${activeSlot.price} ₪` : ""}
 
-אעדכן אותך כשיתפנה תור חדש 🙏`;
+אעדכן אותך כשיתפנה תור חדש ${emoji.pray}`;
 
     return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
   }
@@ -1089,18 +1103,18 @@ ${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
 
     const link = `${window.location.origin}/?slot=${targetSlot.id}&view=client`;
 
-    const message = `היי אהובות 🤍
+    const message = `היי אהובות ${emoji.heart}
 
 התפנה לי תור ל-${targetSlot.service_name}
-בתאריך ${formatDate(targetSlot.slot_date)}
-בשעה ${formatTime(targetSlot.slot_time)}
-${targetSlot.price ? `מחיר: ${targetSlot.price} ₪` : ""}
+${emoji.calendar} בתאריך ${formatDate(targetSlot.slot_date)}
+${emoji.clock} בשעה ${formatTime(targetSlot.slot_time)}
+${targetSlot.price ? `${emoji.money} מחיר: ${targetSlot.price} ₪` : ""}
 
 מי שרוצה יכולה להשאיר פרטים כאן:
 ${link}
 
 השארת פרטים לא מאשרת את התור אוטומטית.
-אני אאשר מול הלקוחה המתאימה 🙏`;
+אני אאשר מול הלקוחה המתאימה ${emoji.pray}`;
 
     navigator.clipboard.writeText(message);
     alert("הודעת WhatsApp הועתקה");
@@ -1167,9 +1181,7 @@ ${link}
             <div className="hero-copy">
               <span className="section-kicker">סיסמה חדשה</span>
               <h2>הגדירי סיסמה חדשה לחשבון</h2>
-              <p>
-                בחרי סיסמה חדשה. אחרי העדכון תועברי חזרה למסך ההתחברות.
-              </p>
+              <p>בחרי סיסמה חדשה. אחרי העדכון תועברי חזרה למסך ההתחברות.</p>
             </div>
 
             <div className="form-card glass-card accent-card">
@@ -1447,7 +1459,7 @@ ${link}
 
             {clientSubmitted && (
               <section className="client-card glass-card success-card">
-                <h3>הבקשה נשלחה ✅</h3>
+                <h3>הבקשה נשלחה</h3>
                 <p>
                   עכשיו אפשר לשלוח הודעת WhatsApp לבעלת העסק כדי שהיא תקבל את
                   הבקשה מיד.
@@ -2152,7 +2164,7 @@ ${link}
 
         {slot && !showClientPage && !showHistory && !isOwnerView && authMode !== "reset" && (
           <section className="client-card glass-card">
-            <h3>הבקשה התקבלה ✅</h3>
+            <h3>הבקשה התקבלה</h3>
             <p>בעלת העסק קיבלה את הפרטים ותחזור אלייך לאישור.</p>
           </section>
         )}
