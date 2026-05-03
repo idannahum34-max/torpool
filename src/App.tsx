@@ -37,6 +37,19 @@ type HistoryItem = Slot & {
   claims: Claim[];
 };
 
+type WaitlistEntry = {
+  id: string;
+  business_id: string;
+  client_name: string;
+  client_phone: string;
+  service_interest: string | null;
+  preferred_days: string | null;
+  preferred_times: string | null;
+  note: string | null;
+  status: string;
+  created_at?: string;
+};
+
 type AccessStatus = "checking" | "guest" | "allowed" | "denied";
 
 function normalizePhoneForWhatsapp(phone: string | null | undefined) {
@@ -87,6 +100,14 @@ function sortClaims(items: Claim[]) {
   });
 }
 
+function sortWaitlist(items: WaitlistEntry[]) {
+  return [...items].sort((a, b) => {
+    const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return bTime - aTime;
+  });
+}
+
 function LogoMark() {
   return (
     <div className="logo-mark" aria-label="TorPool logo">
@@ -96,7 +117,7 @@ function LogoMark() {
 }
 
 function App() {
-  const paymentWhatsappPhone = "972559998187";
+  const paymentWhatsappPhone = "972YOUR_PHONE_HERE";
 
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -111,25 +132,33 @@ function App() {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [clientClaim, setClientClaim] = useState<Claim | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [waitlistEntries, setWaitlistEntries] = useState<WaitlistEntry[]>([]);
+  const [waitlistBusinessId, setWaitlistBusinessId] = useState<string | null>(
+    null
+  );
 
   const [loading, setLoading] = useState(true);
   const [showClientPage, setShowClientPage] = useState(false);
   const [showCreateSlot, setShowCreateSlot] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showWaitlist, setShowWaitlist] = useState(false);
+  const [showWaitlistSignup, setShowWaitlistSignup] = useState(false);
   const [showEditBusiness, setShowEditBusiness] = useState(false);
   const [showEditSlot, setShowEditSlot] = useState(false);
   const [clientSubmitted, setClientSubmitted] = useState(false);
+  const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
 
   const [approvedCount, setApprovedCount] = useState(0);
   const [approvedValue, setApprovedValue] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const [cancelledCount, setCancelledCount] = useState(0);
+  const [activeWaitlistCount, setActiveWaitlistCount] = useState(0);
 
   const isOwnerView = Boolean(
     session && business && slot && slot.business_id === business.id
   );
 
-  const isLandingPage = !session && !slot;
+  const isLandingPage = !session && !slot && !showWaitlistSignup;
 
   const isDashboardPage =
     Boolean(session) &&
@@ -139,10 +168,16 @@ function App() {
     !showClientPage &&
     !showCreateSlot &&
     !showHistory &&
-    !showEditBusiness;
+    !showWaitlist &&
+    !showEditBusiness &&
+    !showWaitlistSignup;
 
   const clientLink = slot
     ? `${window.location.origin}/?slot=${slot.id}&view=client`
+    : "";
+
+  const waitlistLink = business
+    ? `${window.location.origin}/?business=${business.id}&view=waitlist`
     : "";
 
   useEffect(() => {
@@ -173,6 +208,7 @@ function App() {
         setApprovedValue(0);
         setPendingCount(0);
         setCancelledCount(0);
+        setActiveWaitlistCount(0);
       }
     });
 
@@ -201,9 +237,20 @@ function App() {
 
     const params = new URLSearchParams(window.location.search);
     const slotId = params.get("slot");
+    const businessId = params.get("business");
+    const view = params.get("view");
 
     if (window.location.hash.includes("type=recovery")) {
       setAuthMode("reset");
+    }
+
+    if (businessId && view === "waitlist") {
+      setWaitlistBusinessId(businessId);
+      setShowWaitlistSignup(true);
+      setShowClientPage(false);
+      setShowCreateSlot(false);
+      setShowHistory(false);
+      setShowWaitlist(false);
     }
 
     const { data } = await supabase.auth.getSession();
@@ -251,17 +298,17 @@ function App() {
   }
 
   async function loadDashboardStats(businessId: string) {
-    const { data, error } = await supabase
+    const { data: slotsData, error: slotsError } = await supabase
       .from("slots")
       .select("*, claims(*)")
       .eq("business_id", businessId);
 
-    if (error) {
-      console.error(error);
+    if (slotsError) {
+      console.error(slotsError);
       return;
     }
 
-    const slots = (data || []) as HistoryItem[];
+    const slots = (slotsData || []) as HistoryItem[];
 
     const confirmed = slots.filter((item) => item.status === "confirmed");
     const cancelled = slots.filter((item) => item.status === "cancelled");
@@ -276,10 +323,24 @@ function App() {
       return sum + (Number.isNaN(price) ? 0 : price);
     }, 0);
 
+    const { data: waitlistData, error: waitlistError } = await supabase
+      .from("waitlist_entries")
+      .select("id, status")
+      .eq("business_id", businessId);
+
+    if (waitlistError) {
+      console.error(waitlistError);
+    }
+
+    const activeWaitlist = (waitlistData || []).filter(
+      (item) => item.status === "active" || item.status === "contacted"
+    );
+
     setApprovedCount(confirmed.length);
     setApprovedValue(value);
     setPendingCount(pendingClaims);
     setCancelledCount(cancelled.length);
+    setActiveWaitlistCount(activeWaitlist.length);
   }
 
   async function loadSlotFromUrl() {
@@ -316,6 +377,7 @@ function App() {
     setClaims(sortClaims((claimsData || []) as Claim[]));
     setClientClaim(null);
     setShowClientPage(view === "client");
+    setShowWaitlistSignup(false);
   }
 
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
@@ -468,13 +530,17 @@ function App() {
     setClaims([]);
     setClientClaim(null);
     setHistory([]);
+    setWaitlistEntries([]);
 
     setShowClientPage(false);
     setShowCreateSlot(false);
     setShowHistory(false);
+    setShowWaitlist(false);
+    setShowWaitlistSignup(false);
     setShowEditBusiness(false);
     setShowEditSlot(false);
     setClientSubmitted(false);
+    setWaitlistSubmitted(false);
 
     window.history.pushState({}, "", "/");
   }
@@ -618,6 +684,7 @@ function App() {
 
     setShowCreateSlot(false);
     setShowHistory(false);
+    setShowWaitlist(false);
     setShowClientPage(false);
     setShowEditSlot(false);
 
@@ -758,6 +825,53 @@ function App() {
     setLoading(false);
   }
 
+  async function handleJoinWaitlist(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!waitlistBusinessId) {
+      alert("לא נמצא עסק לרשימת ההמתנה");
+      return;
+    }
+
+    setLoading(true);
+
+    const form = new FormData(event.currentTarget);
+
+    const clientName = String(form.get("clientName") || "").trim();
+    const clientPhone = String(form.get("clientPhone") || "").trim();
+    const serviceInterest = String(form.get("serviceInterest") || "").trim();
+    const preferredDays = String(form.get("preferredDays") || "").trim();
+    const preferredTimes = String(form.get("preferredTimes") || "").trim();
+    const note = String(form.get("note") || "").trim();
+
+    if (!clientName || !clientPhone) {
+      alert("צריך למלא שם וטלפון");
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.from("waitlist_entries").insert({
+      business_id: waitlistBusinessId,
+      client_name: clientName,
+      client_phone: clientPhone,
+      service_interest: serviceInterest,
+      preferred_days: preferredDays,
+      preferred_times: preferredTimes,
+      note,
+      status: "active",
+    });
+
+    if (error) {
+      console.error(error);
+      alert("לא הצלחתי להצטרף לרשימת ההמתנה. נסי שוב.");
+      setLoading(false);
+      return;
+    }
+
+    setWaitlistSubmitted(true);
+    setLoading(false);
+  }
+
   async function loadHistory() {
     if (!guardPaidAccess()) return;
     if (!business) return;
@@ -765,6 +879,7 @@ function App() {
     setLoading(true);
 
     setShowHistory(true);
+    setShowWaitlist(false);
     setShowCreateSlot(false);
     setShowClientPage(false);
     setShowEditBusiness(false);
@@ -795,6 +910,96 @@ function App() {
     setHistory(items);
     window.history.pushState({}, "", "/");
 
+    setLoading(false);
+  }
+
+  async function loadWaitlist() {
+    if (!guardPaidAccess()) return;
+    if (!business) return;
+
+    setLoading(true);
+
+    setShowWaitlist(true);
+    setShowHistory(false);
+    setShowCreateSlot(false);
+    setShowClientPage(false);
+    setShowEditBusiness(false);
+    setShowEditSlot(false);
+    setSlot(null);
+    setClaims([]);
+    setClientClaim(null);
+    setClientSubmitted(false);
+
+    const { data, error } = await supabase
+      .from("waitlist_entries")
+      .select("*")
+      .eq("business_id", business.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      alert("לא הצלחתי לטעון רשימת המתנה");
+      setLoading(false);
+      return;
+    }
+
+    setWaitlistEntries(sortWaitlist((data || []) as WaitlistEntry[]));
+    window.history.pushState({}, "", "/");
+
+    setLoading(false);
+  }
+
+  async function updateWaitlistStatus(entry: WaitlistEntry, status: string) {
+    if (!guardPaidAccess()) return;
+    if (!business) return;
+
+    setLoading(true);
+
+    const { error } = await supabase
+      .from("waitlist_entries")
+      .update({ status })
+      .eq("id", entry.id);
+
+    if (error) {
+      console.error(error);
+      alert("שגיאה בעדכון הסטטוס");
+      setLoading(false);
+      return;
+    }
+
+    await loadWaitlist();
+    await loadDashboardStats(business.id);
+    setLoading(false);
+  }
+
+  async function deleteWaitlistEntry(entry: WaitlistEntry) {
+    if (!guardPaidAccess()) return;
+
+    const confirmed = window.confirm(
+      `למחוק את ${entry.client_name} מרשימת ההמתנה?`
+    );
+
+    if (!confirmed) return;
+
+    setLoading(true);
+
+    const { error } = await supabase
+      .from("waitlist_entries")
+      .delete()
+      .eq("id", entry.id);
+
+    if (error) {
+      console.error(error);
+      alert("שגיאה במחיקת הרשומה");
+      setLoading(false);
+      return;
+    }
+
+    if (business) {
+      await loadDashboardStats(business.id);
+    }
+
+    await loadWaitlist();
     setLoading(false);
   }
 
@@ -1083,12 +1288,15 @@ function App() {
     setClaims([]);
     setClientClaim(null);
     setHistory([]);
+    setWaitlistEntries([]);
     setShowClientPage(false);
     setShowCreateSlot(false);
     setShowHistory(false);
+    setShowWaitlist(false);
     setShowEditBusiness(false);
     setShowEditSlot(false);
     setClientSubmitted(false);
+    setWaitlistSubmitted(false);
 
     window.history.pushState({}, "", "/");
 
@@ -1102,6 +1310,7 @@ function App() {
 
     setShowCreateSlot(true);
     setShowHistory(false);
+    setShowWaitlist(false);
     setShowClientPage(false);
     setShowEditBusiness(false);
     setShowEditSlot(false);
@@ -1117,6 +1326,7 @@ function App() {
     setClaims(sortClaims(historySlot.claims || []));
     setClientClaim(null);
     setShowHistory(false);
+    setShowWaitlist(false);
     setShowCreateSlot(false);
     setShowEditBusiness(false);
     setShowEditSlot(false);
@@ -1134,14 +1344,34 @@ function App() {
     if (status === "approved") return "אושרה";
     if (status === "pending") return "ממתינה";
     if (status === "rejected") return "נדחתה";
+    if (status === "active") return "פעילה";
+    if (status === "contacted") return "נשלחה הודעה";
+    if (status === "booked") return "נסגר איתה";
+    if (status === "inactive") return "לא פעילה";
     return status;
   }
 
   function statusClass(status: string) {
-    if (status === "open" || status === "claimed") return "status-open";
-    if (status === "pending") return "status-requested";
-    if (status === "confirmed" || status === "approved") return "status-confirmed";
-    if (status === "cancelled" || status === "rejected") return "status-cancelled";
+    if (status === "open" || status === "claimed" || status === "active") {
+      return "status-open";
+    }
+
+    if (status === "pending" || status === "contacted") {
+      return "status-requested";
+    }
+
+    if (status === "confirmed" || status === "approved" || status === "booked") {
+      return "status-confirmed";
+    }
+
+    if (
+      status === "cancelled" ||
+      status === "rejected" ||
+      status === "inactive"
+    ) {
+      return "status-cancelled";
+    }
+
     return "status-open";
   }
 
@@ -1243,6 +1473,34 @@ ${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
     return buildWhatsappUrl(targetPhone, message);
   }
 
+  function buildWaitlistWhatsappLink(entry: WaitlistEntry, slotToSend?: Slot | null) {
+    if (!entry) return "";
+
+    const targetPhone = normalizePhoneForWhatsapp(entry.client_phone);
+    if (!targetPhone) return "";
+
+    const activeSlot = slotToSend || slot;
+
+    const message = activeSlot
+      ? `היי ${entry.client_name},
+
+התפנה תור שאולי יכול להתאים לך:
+
+${activeSlot.service_name}
+תאריך: ${formatDate(activeSlot.slot_date)}
+שעה: ${formatTime(activeSlot.slot_time)}
+${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
+
+אם זה מתאים לך, אפשר להשאיר בקשה כאן:
+${window.location.origin}/?slot=${activeSlot.id}&view=client`
+      : `היי ${entry.client_name},
+
+ראיתי שנרשמת לרשימת ההמתנה.
+כשיתפנה תור מתאים אעדכן אותך.`;
+
+    return buildWhatsappUrl(targetPhone, message);
+  }
+
   function copyClientLink(slotToCopy?: Slot) {
     const targetSlot = slotToCopy || slot;
     if (!targetSlot) return;
@@ -1275,11 +1533,36 @@ ${link}
     alert("הודעת WhatsApp הועתקה");
   }
 
+  function copyWaitlistLink() {
+    if (!waitlistLink) return;
+
+    navigator.clipboard.writeText(waitlistLink);
+    alert("לינק רשימת ההמתנה הועתק");
+  }
+
+  function copyWaitlistWhatsappMessage() {
+    if (!waitlistLink) return;
+
+    const message = `היי אהובות 🤍
+
+פתחתי רשימת המתנה לתורים שמתפנים.
+מי שרוצה שאעדכן אותה כשמתפנה תור, יכולה להשאיר פרטים כאן:
+
+${waitlistLink}
+
+כשיתפנה תור מתאים — אעדכן לפי זמינות 🙏`;
+
+    navigator.clipboard.writeText(message);
+    alert("הודעת רשימת ההמתנה הועתקה");
+  }
+
   function screenLabel() {
     if (authMode === "reset") return "איפוס סיסמה";
+    if (showWaitlistSignup) return "רשימת המתנה";
     if (accessStatus === "denied" && session) return "גישה למנויות בלבד";
     if (isLandingPage) return "מערכת מילוי ביטולים";
     if (showHistory) return "היסטוריית תורים";
+    if (showWaitlist) return "רשימת המתנה";
     if (showEditBusiness) return "הגדרות העסק";
     if (showCreateSlot) return "יצירת תור";
     if (showEditSlot) return "עריכת תור";
@@ -1298,6 +1581,119 @@ ${link}
           <section className="glass-card loading-card">
             <div className="loader-dot" />
             <h2>טוען...</h2>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
+  if (showWaitlistSignup) {
+    return (
+      <div className="app-shell" dir="rtl">
+        <div className="page-frame">
+          <header className="topbar">
+            <div className="brand-box">
+              <LogoMark />
+              <div className="brand-copy">
+                <div className="eyebrow">רשימת המתנה</div>
+                <h1 className="brand-title">תורפול</h1>
+                <p className="brand-subtitle">כשמתפנה תור — תהיי הראשונה לדעת.</p>
+              </div>
+            </div>
+          </header>
+
+          <section className="hero-card glass-card hero-grid">
+            <div className="hero-copy">
+              <span className="section-kicker">הצטרפות לרשימת המתנה</span>
+              <h2>רוצה לדעת כשמתפנה תור?</h2>
+              <p>
+                השאירי פרטים, ובעלת העסק תוכל לעדכן אותך כשמתפנה תור שמתאים לך.
+                ההצטרפות לא מאשרת תור אוטומטית.
+              </p>
+
+              <div className="hero-bullets">
+                <div className="mini-pill">בלי לרדוף אחרי סטוריז</div>
+                <div className="mini-pill">מקבלת עדכון כשמתפנה תור</div>
+                <div className="mini-pill">אפשר לציין טיפול מועדף</div>
+                <div className="mini-pill">בעלת העסק מאשרת סופית</div>
+              </div>
+            </div>
+
+            <div className="form-card glass-card accent-card">
+              {waitlistSubmitted ? (
+                <>
+                  <div className="card-head">
+                    <span className="section-kicker">נשלח</span>
+                    <h3>נכנסת לרשימת ההמתנה</h3>
+                  </div>
+
+                  <p className="form-help">
+                    הפרטים נשמרו. כשיתפנה תור מתאים, בעלת העסק תוכל ליצור איתך קשר.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="card-head">
+                    <span className="section-kicker">השארת פרטים</span>
+                    <h3>הצטרפי לרשימת ההמתנה</h3>
+                  </div>
+
+                  <form className="form-grid" onSubmit={handleJoinWaitlist}>
+                    <label className="field">
+                      <span>שם מלא</span>
+                      <input
+                        name="clientName"
+                        placeholder="לדוגמה: דנה כהן"
+                        required
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>טלפון</span>
+                      <input name="clientPhone" placeholder="0501234567" required />
+                    </label>
+
+                    <label className="field field-full">
+                      <span>איזה טיפול מעניין אותך?</span>
+                      <input
+                        name="serviceInterest"
+                        placeholder="לדוגמה: טיפול פנים / לק ג׳ל / ריסים"
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>ימים שנוחים לך</span>
+                      <input
+                        name="preferredDays"
+                        placeholder="לדוגמה: ראשון, שלישי, חמישי"
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>שעות שנוחות לך</span>
+                      <input
+                        name="preferredTimes"
+                        placeholder="לדוגמה: בוקר / ערב / גמיש"
+                      />
+                    </label>
+
+                    <label className="field field-full">
+                      <span>הערה</span>
+                      <textarea
+                        name="note"
+                        placeholder="כל דבר שחשוב שבעלת העסק תדע"
+                      />
+                    </label>
+
+                    <div className="field-full form-actions">
+                      <button className="btn btn-primary" type="submit">
+                        הצטרפי לרשימת המתנה
+                      </button>
+                    </div>
+                  </form>
+                </>
+              )}
+            </div>
           </section>
         </div>
       </div>
@@ -1345,7 +1741,7 @@ ${link}
               <div className="hero-bullets">
                 <div className="mini-pill">יצירת תורים שהתפנו</div>
                 <div className="mini-pill">בקשות לקוחות מסודרות</div>
-                <div className="mini-pill">סגירה עם הלקוחה הנכונה</div>
+                <div className="mini-pill">רשימת המתנה מוכנה</div>
                 <div className="mini-pill">מעקב הכנסה שחזרה</div>
               </div>
             </div>
@@ -1401,7 +1797,7 @@ ${link}
 
           <div className="topbar-side">
             <span className="header-chip">
-              מערכת מילוי ביטולים ורשימת בקשות לעסקים קטנים
+              מערכת מילוי ביטולים ורשימת המתנה לעסקים קטנים
             </span>
             {session && authMode !== "reset" && (
               <p className="topbar-business">
@@ -1473,7 +1869,7 @@ ${link}
                 <div className="hero-bullets">
                   <div className="mini-pill">לינק אחד במקום בלגן בהודעות</div>
                   <div className="mini-pill">כל הבקשות במקום אחד</div>
-                  <div className="mini-pill">את בוחרת למי לאשר</div>
+                  <div className="mini-pill">רשימת המתנה מוכנה</div>
                   <div className="mini-pill">תור אחד יכול להחזיר את כל המנוי</div>
                 </div>
               </div>
@@ -1605,9 +2001,9 @@ ${link}
 
               <article className="glass-card feature-card">
                 <div className="feature-icon">03</div>
-                <h3>את שולטת בסגירה</h3>
+                <h3>רשימת המתנה מוכנה</h3>
                 <p>
-                  התור לא נסגר אוטומטית. את מאשרת, דוחה, מבטלת או מוחקת.
+                  לקוחות יכולות להירשם מראש, וכשמתפנה תור את לא מתחילה מאפס.
                 </p>
               </article>
             </section>
@@ -1803,7 +2199,7 @@ ${link}
                 <div className="hero-bullets">
                   <div className="mini-pill">פתוח = אפשר לקבל עוד בקשות</div>
                   <div className="mini-pill">נסגר = התור נתפס</div>
-                  <div className="mini-pill">בוטל = התור לא זמין</div>
+                  <div className="mini-pill">רשימת המתנה = ביקוש מוכן</div>
                   <div className="mini-pill">מחיקה = הסרה מלאה</div>
                 </div>
               </div>
@@ -1825,8 +2221,8 @@ ${link}
                 </div>
 
                 <div className="stat-card">
-                  <strong>{cancelledCount}</strong>
-                  <span>תורים שבוטלו</span>
+                  <strong>{activeWaitlistCount}</strong>
+                  <span>ברשימת המתנה</span>
                 </div>
               </div>
             </section>
@@ -1841,6 +2237,10 @@ ${link}
                 <div className="action-row">
                   <button className="btn btn-primary" onClick={goToCreateSlot}>
                     התפנה לי תור
+                  </button>
+
+                  <button className="btn btn-secondary" onClick={loadWaitlist}>
+                    רשימת המתנה
                   </button>
 
                   <button className="btn btn-secondary" onClick={loadHistory}>
@@ -1862,42 +2262,26 @@ ${link}
 
               <div className="form-card glass-card">
                 <div className="card-head">
-                  <span className="section-kicker">איך זה עובד</span>
-                  <h3>4 צעדים פשוטים</h3>
+                  <span className="section-kicker">רשימת המתנה</span>
+                  <h3>ביקוש מוכן לפני שהתור מתפנה</h3>
                 </div>
 
-                <div className="flow-list">
-                  <div className="flow-item">
-                    <span className="flow-number">1</span>
-                    <div>
-                      <strong>פותחת תור שהתפנה</strong>
-                      <p>טיפול, תאריך, שעה, מחיר והערה אם צריך.</p>
-                    </div>
-                  </div>
+                <p className="form-help">
+                  שלחי ללקוחות לינק קבוע לרשימת המתנה. כשיתפנה תור, כבר תהיה לך
+                  רשימה של לקוחות שרוצות לשמוע ממך.
+                </p>
 
-                  <div className="flow-item">
-                    <span className="flow-number">2</span>
-                    <div>
-                      <strong>שולחת לינק אחד</strong>
-                      <p>לסטורי, WhatsApp או רשימת תפוצה.</p>
-                    </div>
-                  </div>
+                <div className="action-row">
+                  <button className="btn btn-secondary" onClick={copyWaitlistLink}>
+                    העתיקי לינק רשימת המתנה
+                  </button>
 
-                  <div className="flow-item">
-                    <span className="flow-number">3</span>
-                    <div>
-                      <strong>מקבלת בקשות מסודרות</strong>
-                      <p>כמה לקוחות יכולות לבקש, ואת רואה את כולן במקום אחד.</p>
-                    </div>
-                  </div>
-
-                  <div className="flow-item">
-                    <span className="flow-number">4</span>
-                    <div>
-                      <strong>סוגרת עם הלקוחה הנכונה</strong>
-                      <p>מאשרת אחת, והשאר מסומנות כנדחו.</p>
-                    </div>
-                  </div>
+                  <button
+                    className="btn btn-success"
+                    onClick={copyWaitlistWhatsappMessage}
+                  >
+                    הודעת WhatsApp לרשימת המתנה
+                  </button>
                 </div>
               </div>
             </section>
@@ -2007,6 +2391,167 @@ ${link}
                 </button>
               </div>
             </form>
+          </section>
+        )}
+
+        {showWaitlist && business && authMode !== "reset" && (
+          <section className="section-block">
+            <div className="section-head">
+              <span className="section-kicker">רשימת המתנה</span>
+              <h3>לקוחות שמחכות לתור שהתפנה</h3>
+            </div>
+
+            <div className="form-card glass-card">
+              <div className="card-head">
+                <span className="section-kicker">הפצה</span>
+                <h3>לינק קבוע להצטרפות</h3>
+              </div>
+
+              <p className="form-help">
+                שלחי את הלינק הזה ללקוחות. הן יירשמו מראש, וכשיתפנה תור תוכלי
+                לפנות אליהן מהר.
+              </p>
+
+              <div className="slot-link-box">
+                <span>לינק רשימת המתנה</span>
+                <div className="link-row">
+                  <input value={waitlistLink} readOnly />
+                  <button
+                    className="btn btn-secondary btn-small"
+                    onClick={copyWaitlistLink}
+                  >
+                    העתקי לינק
+                  </button>
+                </div>
+              </div>
+
+              <div className="action-row">
+                <button
+                  className="btn btn-success"
+                  onClick={copyWaitlistWhatsappMessage}
+                >
+                  הודעת WhatsApp לרשימת המתנה
+                </button>
+              </div>
+            </div>
+
+            {waitlistEntries.length === 0 ? (
+              <div className="glass-card">
+                <div className="empty-state">
+                  <h3>אין עדיין לקוחות ברשימת ההמתנה</h3>
+                  <p>
+                    העתיקי את ההודעה ושלחי ללקוחות. מי שתשאיר פרטים תופיע כאן.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="history-list">
+                {waitlistEntries.map((entry) => {
+                  const whatsappLink = buildWaitlistWhatsappLink(entry, slot);
+
+                  return (
+                    <article className="history-card glass-card" key={entry.id}>
+                      <div className="history-main">
+                        <div>
+                          <h4>{entry.client_name}</h4>
+                          <p className="slot-meta-line">{entry.client_phone}</p>
+                        </div>
+
+                        <span className={`status-badge ${statusClass(entry.status)}`}>
+                          {statusLabel(entry.status)}
+                        </span>
+                      </div>
+
+                      <div className="request-box">
+                        <div className="request-title">פרטי העדפה</div>
+
+                        <div className="request-grid">
+                          <div>
+                            <span>טיפול</span>
+                            <strong>{entry.service_interest || "לא צוין"}</strong>
+                          </div>
+
+                          <div>
+                            <span>ימים</span>
+                            <strong>{entry.preferred_days || "לא צוין"}</strong>
+                          </div>
+
+                          <div>
+                            <span>שעות</span>
+                            <strong>{entry.preferred_times || "לא צוין"}</strong>
+                          </div>
+                        </div>
+
+                        {entry.note && (
+                          <div className="request-note">
+                            <span>הערה</span>
+                            <p>{entry.note}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="action-row">
+                        {whatsappLink && (
+                          <a
+                            className="btn btn-success"
+                            href={whatsappLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={() => updateWaitlistStatus(entry, "contacted")}
+                          >
+                            שלחי WhatsApp
+                          </a>
+                        )}
+
+                        {entry.status !== "booked" && (
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => updateWaitlistStatus(entry, "booked")}
+                          >
+                            סומן כנסגר
+                          </button>
+                        )}
+
+                        {entry.status !== "inactive" && (
+                          <button
+                            className="btn btn-warning"
+                            onClick={() => updateWaitlistStatus(entry, "inactive")}
+                          >
+                            לא פעילה
+                          </button>
+                        )}
+
+                        {entry.status !== "active" && (
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => updateWaitlistStatus(entry, "active")}
+                          >
+                            החזרה לפעילה
+                          </button>
+                        )}
+
+                        <button
+                          className="btn btn-danger"
+                          onClick={() => deleteWaitlistEntry(entry)}
+                        >
+                          מחיקה
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="action-row">
+              <button className="btn btn-primary" onClick={goToCreateSlot}>
+                התפנה לי תור
+              </button>
+
+              <button className="btn btn-secondary" onClick={resetToDashboard}>
+                חזרה לדשבורד
+              </button>
+            </div>
           </section>
         )}
 
@@ -2445,6 +2990,13 @@ ${link}
                     onClick={() => copyWhatsappMessage()}
                   >
                     הודעת WhatsApp לרשימת תפוצה
+                  </button>
+
+                  <button
+                    className="btn btn-secondary"
+                    onClick={loadWaitlist}
+                  >
+                    רשימת המתנה
                   </button>
 
                   {slot.status !== "confirmed" && slot.status !== "cancelled" && (
