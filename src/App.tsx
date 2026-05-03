@@ -7,6 +7,7 @@ type Business = {
   owner_id: string;
   business_name: string;
   phone: string | null;
+  email: string | null;
 };
 
 type Slot = {
@@ -408,6 +409,7 @@ function App() {
       owner_id: user.id,
       business_name: String(form.get("businessName") || ""),
       phone: String(form.get("phone") || ""),
+      email: String(form.get("email") || ""),
     };
 
     const { data, error } = await supabase
@@ -440,6 +442,7 @@ function App() {
     const updatedBusiness = {
       business_name: String(form.get("businessName") || ""),
       phone: String(form.get("phone") || ""),
+      email: String(form.get("email") || ""),
     };
 
     const { data, error } = await supabase
@@ -568,6 +571,24 @@ function App() {
     setLoading(false);
   }
 
+  async function sendClaimEmailNotification(
+    slotId: string,
+    clientName: string,
+    clientPhone: string
+  ) {
+    const { error } = await supabase.functions.invoke("send-claim-email", {
+      body: {
+        slotId,
+        clientName,
+        clientPhone,
+      },
+    });
+
+    if (error) {
+      console.error("Email notification failed:", error);
+    }
+  }
+
   async function handleClaimSlot(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -578,46 +599,57 @@ function App() {
       return;
     }
 
+    if (slot.status !== "open") {
+      alert("כבר נשלחה בקשה לתור הזה. בעלת העסק תבדוק ותחזור אלייך.");
+      return;
+    }
+
     setLoading(true);
 
     const form = new FormData(event.currentTarget);
 
-    const newClaim = {
-      slot_id: slot.id,
-      client_name: String(form.get("clientName") || ""),
-      client_phone: String(form.get("clientPhone") || ""),
-      status: "pending",
-    };
+    const clientName = String(form.get("clientName") || "").trim();
+    const clientPhone = String(form.get("clientPhone") || "").trim();
 
-    const { data: claimData, error: claimError } = await supabase
-      .from("claims")
-      .insert(newClaim)
-      .select()
-      .single();
-
-    if (claimError) {
-      console.error(claimError);
-      alert("שגיאה בשליחת הבקשה");
+    if (!clientName || !clientPhone) {
+      alert("צריך למלא שם וטלפון");
       setLoading(false);
       return;
     }
 
-    const { data: updatedSlot, error: slotError } = await supabase
-      .from("slots")
-      .update({ status: "claimed" })
-      .eq("id", slot.id)
-      .select()
-      .single();
+    const newClaim = {
+      slot_id: slot.id,
+      client_name: clientName,
+      client_phone: clientPhone,
+      status: "pending",
+    };
 
-    if (slotError) {
-      console.error(slotError);
+    const { error: claimError } = await supabase.from("claims").insert(newClaim);
+
+    if (claimError) {
+      console.error(claimError);
+      alert("שגיאה בשליחת הבקשה. נסי שוב בעוד רגע.");
+      setLoading(false);
+      return;
     }
 
-    if (updatedSlot) {
-      setSlot(updatedSlot);
-    }
+    await sendClaimEmailNotification(slot.id, clientName, clientPhone);
 
-    setClaim(claimData);
+    const localClaim: Claim = {
+      id: "local-client-claim",
+      slot_id: slot.id,
+      client_name: clientName,
+      client_phone: clientPhone,
+      status: "pending",
+      created_at: new Date().toISOString(),
+    };
+
+    setClaim(localClaim);
+    setSlot({
+      ...slot,
+      status: "claimed",
+    });
+
     setClientSubmitted(true);
     setShowClientPage(true);
 
@@ -1349,6 +1381,17 @@ ${link}
                 <input name="phone" placeholder="0501234567" required />
               </label>
 
+              <label className="field field-full">
+                <span>אימייל לקבלת התראות</span>
+                <input
+                  name="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  defaultValue={user?.email || ""}
+                  required
+                />
+              </label>
+
               <div className="field-full form-actions">
                 <button className="btn btn-primary" type="submit">
                   צרי עסק
@@ -1605,6 +1648,16 @@ ${link}
               <label className="field">
                 <span>טלפון WhatsApp</span>
                 <input name="phone" defaultValue={business.phone || ""} required />
+              </label>
+
+              <label className="field field-full">
+                <span>אימייל לקבלת התראות</span>
+                <input
+                  name="email"
+                  type="email"
+                  defaultValue={business.email || user?.email || ""}
+                  required
+                />
               </label>
 
               <div className="field-full form-actions">
