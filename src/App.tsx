@@ -67,17 +67,6 @@ function formatTime(time: string) {
   return time.slice(0, 5);
 }
 
-const emoji = {
-  heart: decodeURIComponent("%F0%9F%A4%8D"),
-  mail: decodeURIComponent("%F0%9F%92%8C"),
-  check: decodeURIComponent("%E2%9C%85"),
-  calendar: decodeURIComponent("%F0%9F%93%85"),
-  clock: decodeURIComponent("%F0%9F%95%90"),
-  money: decodeURIComponent("%F0%9F%92%B0"),
-  sparkle: decodeURIComponent("%E2%9C%A8"),
-  pray: decodeURIComponent("%F0%9F%99%8F"),
-};
-
 function cleanWhatsappText(text: string) {
   return text.replace(/\uFFFD/g, "").normalize("NFC");
 }
@@ -1003,18 +992,18 @@ function App() {
     const targetPhone = normalizePhoneForWhatsapp(slot.business_phone);
     if (!targetPhone) return "";
 
-    const message = `היי, ראיתי שהתפנה תור דרך תורפול ${emoji.mail}
+    const message = `היי, ראיתי שהתפנה תור דרך תורפול.
 
 שם: ${claim.client_name}
 טלפון: ${claim.client_phone}
 
 אני רוצה את התור:
 ${slot.service_name}
-${emoji.calendar} תאריך: ${formatDate(slot.slot_date)}
-${emoji.clock} שעה: ${formatTime(slot.slot_time)}
-${slot.price ? `${emoji.money} מחיר: ${slot.price} ₪` : ""}
+תאריך: ${formatDate(slot.slot_date)}
+שעה: ${formatTime(slot.slot_time)}
+${slot.price ? `מחיר: ${slot.price} ₪` : ""}
 
-השארתי פרטים באתר ומחכה לאישור ${emoji.pray}`;
+השארתי פרטים באתר ומחכה לאישור.`;
 
     return buildWhatsappUrl(targetPhone, message);
   }
@@ -1031,17 +1020,17 @@ ${slot.price ? `${emoji.money} מחיר: ${slot.price} ₪` : ""}
     const targetPhone = normalizePhoneForWhatsapp(activeClaim.client_phone);
     if (!targetPhone) return "";
 
-    const message = `היי ${activeClaim.client_name} ${emoji.heart}
+    const message = `היי ${activeClaim.client_name},
 
-התור שלך אושר ${emoji.check}
+התור שלך אושר.
 
 פרטי התור:
 ${activeSlot.service_name}
-${emoji.calendar} תאריך: ${formatDate(activeSlot.slot_date)}
-${emoji.clock} שעה: ${formatTime(activeSlot.slot_time)}
-${activeSlot.price ? `${emoji.money} מחיר: ${activeSlot.price} ₪` : ""}
+תאריך: ${formatDate(activeSlot.slot_date)}
+שעה: ${formatTime(activeSlot.slot_time)}
+${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
 
-נתראה ${emoji.sparkle}`;
+נתראה.`;
 
     return buildWhatsappUrl(targetPhone, message);
   }
@@ -1058,15 +1047,15 @@ ${activeSlot.price ? `${emoji.money} מחיר: ${activeSlot.price} ₪` : ""}
     const targetPhone = normalizePhoneForWhatsapp(activeClaim.client_phone);
     if (!targetPhone) return "";
 
-    const message = `היי ${activeClaim.client_name} ${emoji.heart}
+    const message = `היי ${activeClaim.client_name},
 
 תודה שהשארת פרטים.
-התור הזה כבר לא מתאים או נתפס, אבל אעדכן אותך כשיתפנה תור חדש ${emoji.pray}
+התור הזה כבר לא מתאים או נתפס, אבל אעדכן אותך כשיתפנה תור חדש.
 
 פרטי התור:
 ${activeSlot.service_name}
-${emoji.calendar} תאריך: ${formatDate(activeSlot.slot_date)}
-${emoji.clock} שעה: ${formatTime(activeSlot.slot_time)}`;
+תאריך: ${formatDate(activeSlot.slot_date)}
+שעה: ${formatTime(activeSlot.slot_time)}`;
 
     return buildWhatsappUrl(targetPhone, message);
   }
@@ -1083,17 +1072,17 @@ ${emoji.clock} שעה: ${formatTime(activeSlot.slot_time)}`;
     const targetPhone = normalizePhoneForWhatsapp(activeClaim.client_phone);
     if (!targetPhone) return "";
 
-    const message = `היי ${activeClaim.client_name} ${emoji.heart}
+    const message = `היי ${activeClaim.client_name},
 
 לצערי התור שהתבקשת אליו בוטל.
 
 פרטי התור:
 ${activeSlot.service_name}
-${emoji.calendar} תאריך: ${formatDate(activeSlot.slot_date)}
-${emoji.clock} שעה: ${formatTime(activeSlot.slot_time)}
-${activeSlot.price ? `${emoji.money} מחיר: ${activeSlot.price} ₪` : ""}
+תאריך: ${formatDate(activeSlot.slot_date)}
+שעה: ${formatTime(activeSlot.slot_time)}
+${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
 
-אעדכן אותך כשיתפנה תור חדש ${emoji.pray}`;
+אעדכן אותך כשיתפנה תור חדש.`;
 
     return buildWhatsappUrl(targetPhone, message);
   }
@@ -1113,18 +1102,18 @@ ${activeSlot.price ? `${emoji.money} מחיר: ${activeSlot.price} ₪` : ""}
 
     const link = `${window.location.origin}/?slot=${targetSlot.id}&view=client`;
 
-    const message = `היי אהובות ${emoji.heart}
+    const message = `היי,
 
 התפנה לי תור ל-${targetSlot.service_name}
-${emoji.calendar} בתאריך ${formatDate(targetSlot.slot_date)}
-${emoji.clock} בשעה ${formatTime(targetSlot.slot_time)}
-${targetSlot.price ? `${emoji.money} מחיר: ${targetSlot.price} ₪` : ""}
+בתאריך ${formatDate(targetSlot.slot_date)}
+בשעה ${formatTime(targetSlot.slot_time)}
+${targetSlot.price ? `מחיר: ${targetSlot.price} ₪` : ""}
 
 מי שרוצה יכולה להשאיר פרטים כאן:
 ${link}
 
 השארת פרטים לא מאשרת את התור אוטומטית.
-אני אאשר מול הלקוחה המתאימה ${emoji.pray}`;
+אני אאשר מול הלקוחה המתאימה.`;
 
     navigator.clipboard.writeText(cleanWhatsappText(message));
     alert("הודעת WhatsApp הועתקה");
