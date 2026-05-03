@@ -1102,7 +1102,7 @@ ${activeSlot.price ? `מחיר: ${activeSlot.price} ₪` : ""}
 
     const link = `${window.location.origin}/?slot=${targetSlot.id}&view=client`;
 
-    const message = `היי,
+    const message = `היי אהובות 🤍
 
 התפנה לי תור ל-${targetSlot.service_name}
 בתאריך ${formatDate(targetSlot.slot_date)}
@@ -1113,9 +1113,9 @@ ${targetSlot.price ? `מחיר: ${targetSlot.price} ₪` : ""}
 ${link}
 
 השארת פרטים לא מאשרת את התור אוטומטית.
-אני אאשר מול הלקוחה המתאימה.`;
+אני אאשר מול הלקוחה המתאימה 🙏`;
 
-    navigator.clipboard.writeText(cleanWhatsappText(message));
+    navigator.clipboard.writeText(message);
     alert("הודעת WhatsApp הועתקה");
   }
 
