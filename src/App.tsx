@@ -2224,6 +2224,11 @@ ${waitlistLink}
                   <strong>{activeWaitlistCount}</strong>
                   <span>ברשימת המתנה</span>
                 </div>
+
+                <div className="stat-card">
+                  <strong>{cancelledCount}</strong>
+                  <span>תורים שבוטלו</span>
+                </div>
               </div>
             </section>
 
@@ -2992,10 +2997,7 @@ ${waitlistLink}
                     הודעת WhatsApp לרשימת תפוצה
                   </button>
 
-                  <button
-                    className="btn btn-secondary"
-                    onClick={loadWaitlist}
-                  >
+                  <button className="btn btn-secondary" onClick={loadWaitlist}>
                     רשימת המתנה
                   </button>
 
