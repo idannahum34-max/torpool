@@ -68,14 +68,14 @@ function formatTime(time: string) {
 }
 
 const emoji = {
-  heart: "\u{1F90D}",
-  mail: "\u{1F48C}",
-  check: "\u2705",
-  calendar: "\u{1F4C5}",
-  clock: "\u{1F550}",
-  money: "\u{1F4B0}",
-  sparkle: "\u2728",
-  pray: "\u{1F64F}",
+  heart: String.fromCodePoint(0x1f90d),
+  mail: String.fromCodePoint(0x1f48c),
+  check: String.fromCodePoint(0x2705),
+  calendar: String.fromCodePoint(0x1f4c5),
+  clock: String.fromCodePoint(0x1f550),
+  money: String.fromCodePoint(0x1f4b0),
+  sparkle: String.fromCodePoint(0x2728),
+  pray: String.fromCodePoint(0x1f64f),
 };
 
 function LogoMark() {
