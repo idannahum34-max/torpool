@@ -68,15 +68,25 @@ function formatTime(time: string) {
 }
 
 const emoji = {
-  heart: String.fromCodePoint(0x1f90d),
-  mail: String.fromCodePoint(0x1f48c),
-  check: String.fromCodePoint(0x2705),
-  calendar: String.fromCodePoint(0x1f4c5),
-  clock: String.fromCodePoint(0x1f550),
-  money: String.fromCodePoint(0x1f4b0),
-  sparkle: String.fromCodePoint(0x2728),
-  pray: String.fromCodePoint(0x1f64f),
+  heart: decodeURIComponent("%F0%9F%A4%8D"),
+  mail: decodeURIComponent("%F0%9F%92%8C"),
+  check: decodeURIComponent("%E2%9C%85"),
+  calendar: decodeURIComponent("%F0%9F%93%85"),
+  clock: decodeURIComponent("%F0%9F%95%90"),
+  money: decodeURIComponent("%F0%9F%92%B0"),
+  sparkle: decodeURIComponent("%E2%9C%A8"),
+  pray: decodeURIComponent("%F0%9F%99%8F"),
 };
+
+function cleanWhatsappText(text: string) {
+  return text.replace(/\uFFFD/g, "").normalize("NFC");
+}
+
+function buildWhatsappUrl(phone: string, message: string) {
+  return `https://wa.me/${phone}?text=${encodeURIComponent(
+    cleanWhatsappText(message)
+  )}`;
+}
 
 function LogoMark() {
   return (
@@ -1006,7 +1016,7 @@ ${slot.price ? `${emoji.money} מחיר: ${slot.price} ₪` : ""}
 
 השארתי פרטים באתר ומחכה לאישור ${emoji.pray}`;
 
-    return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
+    return buildWhatsappUrl(targetPhone, message);
   }
 
   function buildApprovalWhatsappLink(
@@ -1033,7 +1043,7 @@ ${activeSlot.price ? `${emoji.money} מחיר: ${activeSlot.price} ₪` : ""}
 
 נתראה ${emoji.sparkle}`;
 
-    return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
+    return buildWhatsappUrl(targetPhone, message);
   }
 
   function buildRejectionWhatsappLink(
@@ -1058,7 +1068,7 @@ ${activeSlot.service_name}
 ${emoji.calendar} תאריך: ${formatDate(activeSlot.slot_date)}
 ${emoji.clock} שעה: ${formatTime(activeSlot.slot_time)}`;
 
-    return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
+    return buildWhatsappUrl(targetPhone, message);
   }
 
   function buildCancellationWhatsappLink(
@@ -1085,7 +1095,7 @@ ${activeSlot.price ? `${emoji.money} מחיר: ${activeSlot.price} ₪` : ""}
 
 אעדכן אותך כשיתפנה תור חדש ${emoji.pray}`;
 
-    return `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
+    return buildWhatsappUrl(targetPhone, message);
   }
 
   function copyClientLink(slotToCopy?: Slot) {
@@ -1116,7 +1126,7 @@ ${link}
 השארת פרטים לא מאשרת את התור אוטומטית.
 אני אאשר מול הלקוחה המתאימה ${emoji.pray}`;
 
-    navigator.clipboard.writeText(message);
+    navigator.clipboard.writeText(cleanWhatsappText(message));
     alert("הודעת WhatsApp הועתקה");
   }
 
