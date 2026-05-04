@@ -191,7 +191,7 @@ function ConfirmModal({ opts, onChoice }: { opts: ConfirmOpts; onChoice: (v: boo
 function Logo() {
   return (
     <div className="brandbar">
-      <div className="brandmark">TP</div>
+      <div className="brandmark" aria-hidden="true">✿</div>
       <div>
         <p className="brandtitle">תורפול</p>
         <p className="brandsub">תור שהתבטל? הופכים אותו להזדמנות.</p>
@@ -549,13 +549,9 @@ export default function App() {
     const clientPhone = String(form.get("clientPhone") || "").trim();
     if (!clientName || !clientPhone) { showToast("צריך למלא שם וטלפון", "error"); setLoading(false); return; }
     const { data, error } = await supabase.from("claims").insert({
-  slot_id: slot.id,
-  client_name: clientName,
-  client_phone: clientPhone,
-  normalized_client_phone: normalizePhone(clientPhone),
-  status: "pending",
-}).select().single();
-    if (error) { showToast("שגיאה בשליחת הבקשה. נסי שוב בעוד רגע.", "error"); setLoading(false); return; }
+      slot_id: slot.id, client_name: clientName, client_phone: clientPhone, normalized_client_phone: normalizePhone(clientPhone), status: "pending",
+    }).select().single();
+    if (error) { showToast("נראה שכבר נרשמת לתור הזה עם הטלפון הזה", "info"); setLoading(false); return; }
     await sendClaimEmail(slot.id, clientName, clientPhone);
     const inserted = data as Claim;
     setClientClaim(inserted);
@@ -574,18 +570,18 @@ export default function App() {
     const clientName = String(form.get("clientName") || "").trim();
     const clientPhone = String(form.get("clientPhone") || "").trim();
     if (!clientName || !clientPhone) { showToast("צריך למלא שם וטלפון", "error"); setLoading(false); return; }
-   const { error } = await supabase.from("waitlist_entries").insert({
-  business_id: waitlistBusinessId,
-  client_name: clientName,
-  client_phone: clientPhone,
-  normalized_client_phone: normalizePhone(clientPhone),
-  service_interest: String(form.get("serviceInterest") || "").trim(),
-  preferred_days: String(form.get("preferredDays") || "").trim(),
-  preferred_times: String(form.get("preferredTimes") || "").trim(),
-  note: String(form.get("note") || "").trim(),
-  status: "active",
-});
-    if (error) { showToast("לא הצלחתי להצטרף לרשימת ההמתנה. נסי שוב.", "error"); setLoading(false); return; }
+    const { error } = await supabase.from("waitlist_entries").insert({
+      business_id: waitlistBusinessId,
+      client_name: clientName,
+      client_phone: clientPhone,
+      normalized_client_phone: normalizePhone(clientPhone),
+      service_interest: String(form.get("serviceInterest") || "").trim(),
+      preferred_days: String(form.get("preferredDays") || "").trim(),
+      preferred_times: String(form.get("preferredTimes") || "").trim(),
+      note: String(form.get("note") || "").trim(),
+      status: "active",
+    });
+    if (error) { showToast("נראה שכבר נרשמת לרשימת ההמתנה עם הטלפון הזה", "info"); setLoading(false); return; }
     setWaitlistSubmitted(true);
     setLoading(false);
   }
@@ -605,9 +601,9 @@ export default function App() {
     });
     if (!ok) return;
     setLoading(true);
-   const { error } = await supabase.rpc("approve_claim", {
-  p_claim_id: c.id,
-});
+    const { error } = await supabase.rpc("approve_claim", {
+      p_claim_id: c.id,
+    });
     if (error) { showToast("שגיאה בסגירת התור", "error"); setLoading(false); return; }
     showToast("התור נסגר בהצלחה ✓", "success");
     await loadStats(business.id);
@@ -1023,6 +1019,22 @@ export default function App() {
           </div>
         )}
 
+
+        {/* ── Public premium header ── */}
+        {isLanding && authMode !== "reset" && (
+          <div className="dashboard-header public-header">
+            <Logo />
+            <div className="top-tabs public-nav">
+              <button className="top-tab active">בית</button>
+              <button className="top-tab">איך זה עובד</button>
+              <button className="top-tab">למי זה מתאים</button>
+              <button className="top-tab">מחירים</button>
+              <button className="top-tab">שאלות ותשובות</button>
+            </div>
+            <button className="btn btn--primary btn--small" onClick={() => setAuthMode("register")}>התחילי עכשיו</button>
+          </div>
+        )}
+
         {/* ── Password reset ── */}
         {authMode === "reset" && (
           <div className="glass-card hero-landing">
@@ -1050,19 +1062,22 @@ export default function App() {
           <>
             <div className="glass-card hero-landing">
               <div className="hero-copy">
-                <div className="eyebrow">פיילוט לעסקים ראשונים · 49 ₪</div>
-                <h1>הופכים ביטולים של הרגע האחרון לתורים סגורים</h1>
+                <div className="eyebrow">הפלטפורמה החכמה למילוי תורים שהתבטלו</div>
+                <h1>תור שהתבטל? ממלאים אותו תוך דקות</h1>
                 <p className="hero-desc">
-                  תורפול מרכזת את כל הבקשות לתור שהתפנה במקום אחד, עוזרת לך לבחור למי לאשר, ושומרת לך היסטוריה של הכנסה שחזרה ליומן.
+                  תורפול מחברת בין בעלות עסקים ללקוחות שמחכות לתור פנוי, ומרכזת את כל הבקשות במקום אחד — כדי שתמלאי פתחים ביומן, תגדילי הכנסות ותחסכי זמן יקר.
                 </p>
                 <div className="hero-pills">
-                  <span className="pill">לינק אחד במקום בלגן בהודעות</span>
-                  <span className="pill">כל הבקשות במקום אחד</span>
-                  <span className="pill">רשימת המתנה מוכנה</span>
-                  <span className="pill">תור אחד יכול להחזיר את כל המנוי</span>
+                  <span className="pill">לינק אחד במקום בלגן</span>
+                  <span className="pill">בקשות מסודרות בזמן אמת</span>
+                  <span className="pill">רשימת המתנה חכמה</span>
+                  <span className="pill">פחות זמן מת ביומן</span>
                 </div>
               </div>
               <div className="auth-panel">
+                <span className="section-kicker">כניסה למערכת</span>
+                <h3 className="auth-title">הצטרפי לתורפול</h3>
+                <p className="auth-subtitle">פתיחת חשבון לוקחת פחות מדקה</p>
                 <div className="auth-switch">
                   <button className={`auth-tab${authMode === "login" ? " active" : ""}`} onClick={() => setAuthMode("login")}>כניסה</button>
                   <button className={`auth-tab${authMode === "register" ? " active" : ""}`} onClick={() => setAuthMode("register")}>הרשמה</button>
@@ -1105,8 +1120,8 @@ export default function App() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "18px", marginTop: "22px" }}>
               {[
                 { n: "01", t: "לינק אחד במקום בלגן", d: "מפרסמת תור שהתפנה ושולחת לינק מסודר לסטורי, WhatsApp או רשימת תפוצה." },
-                { n: "02", t: "כל הבקשות במקום אחד", d: "במקום עשר הודעות פרטיות, את רואה את כל מי שרוצה את התור במסך אחד." },
-                { n: "03", t: "רשימת המתנה מוכנה",   d: "לקוחות יכולות להירשם מראש, וכשמתפנה תור את לא מתחילה מאפס." },
+                { n: "02", t: "בקשות מסודרות בזמן אמת", d: "במקום עשר הודעות פרטיות, את רואה את כל מי שרוצה את התור במסך אחד." },
+                { n: "03", t: "רשימת המתנה חכמה",   d: "לקוחות יכולות להירשם מראש, וכשמתפנה תור את לא מתחילה מאפס." },
               ].map(f => (
                 <div key={f.n} className="glass-card" style={{ padding: "26px" }}>
                   <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg,#ffd7e9,#bea5ff)", display: "grid", placeItems: "center", fontWeight: 900, color: "#1c0e20", marginBottom: 12 }}>{f.n}</div>
@@ -1141,17 +1156,17 @@ export default function App() {
               <div className="hero-copy">
                 <div className="eyebrow">דשבורד · {business.business_name}</div>
                 <h1 style={{ fontSize: "clamp(1.8rem,3.5vw,3rem)", margin: "0 0 12px" }}>
-                  כל תור שמתפנה יכול להפוך להכנסה שחוזרת ליומן
+                  שלום דניאל 👋
                 </h1>
                 <p className="hero-desc">
-                  צרי תור שהתפנה, שלחי לינק ללקוחות, קבלי בקשות מסודרות וסגרי מול הלקוחה הנכונה — בלי בלגן.
+                  כל תור שבוטל הוא הזדמנות למלא מחדש. נהלי תורים מבוטלים, צמצמי ביטולים ושמרי על יומן מלא.
                 </p>
               </div>
               <div className="stats-side">
-                <div className="stat-card"><strong>{approvedCount}</strong><span>תורים שנסגרו</span></div>
-                <div className="stat-card"><strong>{approvedValue} ₪</strong><span>הכנסה שחזרה</span></div>
-                <div className="stat-card"><strong>{pendingCount}</strong><span>בקשות ממתינות</span></div>
-                <div className="stat-card"><strong>{activeWaitlistCount}</strong><span>ברשימת המתנה</span></div>
+                <div className="stat-card"><strong>{approvedCount}</strong><span>תורים שמולאו</span></div>
+                <div className="stat-card"><strong>{approvedValue} ₪</strong><span>שווי תורים שמולאו</span></div>
+                <div className="stat-card"><strong>{pendingCount}</strong><span>בקשות פעילות</span></div>
+                <div className="stat-card"><strong>{activeWaitlistCount}</strong><span>ממתינות ברשימת המתנה</span></div>
                 <div className="stat-card"><strong>{cancelledCount}</strong><span>תורים שבוטלו</span></div>
               </div>
             </div>
