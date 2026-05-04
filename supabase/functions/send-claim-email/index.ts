@@ -1,3 +1,5 @@
+/// <reference lib="deno.ns" />
+
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
@@ -14,7 +16,43 @@ type RequestBody = {
   clientPhone?: string;
 };
 
-function escapeHtml(value: string | null | undefined) {
+type SlotWithBusiness = {
+  id: string;
+  business_id: string | null;
+  business_name: string | null;
+  service_name: string | null;
+  slot_date: string | null;
+  slot_time: string | null;
+  price: string | null;
+  note: string | null;
+  businesses:
+    | {
+        business_name?: string | null;
+        phone?: string | null;
+        email?: string | null;
+      }
+    | {
+        business_name?: string | null;
+        phone?: string | null;
+        email?: string | null;
+      }[]
+    | null;
+};
+
+function jsonResponse(
+  body: Record<string, unknown>,
+  status = 200,
+): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+function escapeHtml(value: string | null | undefined): string {
   return String(value || "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -23,7 +61,7 @@ function escapeHtml(value: string | null | undefined) {
     .replaceAll("'", "&#039;");
 }
 
-function formatDate(date: string | null | undefined) {
+function formatDate(date: string | null | undefined): string {
   if (!date) return "";
 
   try {
@@ -37,12 +75,20 @@ function formatDate(date: string | null | undefined) {
   }
 }
 
-function formatTime(time: string | null | undefined) {
+function formatTime(time: string | null | undefined): string {
   if (!time) return "";
   return time.slice(0, 5);
 }
 
-serve(async (req) => {
+function getBusinessFromSlot(slot: SlotWithBusiness) {
+  if (Array.isArray(slot.businesses)) {
+    return slot.businesses[0] ?? null;
+  }
+
+  return slot.businesses ?? null;
+}
+
+serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response("ok", {
       status: 200,
@@ -51,13 +97,7 @@ serve(async (req) => {
   }
 
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json",
-      },
-    });
+    return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
   try {
@@ -68,17 +108,11 @@ serve(async (req) => {
     const clientPhone = String(body.clientPhone || "").trim();
 
     if (!slotId || !clientName || !clientPhone) {
-      return new Response(
-        JSON.stringify({
-          error: "Missing slotId, clientName, or clientPhone",
-        }),
+      return jsonResponse(
         {
-          status: 400,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
+          error: "Missing slotId, clientName, or clientPhone",
+        },
+        400,
       );
     }
 
@@ -96,61 +130,46 @@ serve(async (req) => {
         hasResendApiKey: Boolean(resendApiKey),
       });
 
-      return new Response(
-        JSON.stringify({
-          error: "Missing server environment variables",
-        }),
+      return jsonResponse(
         {
-          status: 500,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
+          error: "Missing server environment variables",
+        },
+        500,
       );
     }
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    const { data: slot, error: slotError } = await supabaseAdmin
+    const { data: slotData, error: slotError } = await supabaseAdmin
       .from("slots")
       .select(
         `
-        id,
-        business_id,
-        business_name,
-        service_name,
-        slot_date,
-        slot_time,
-        price,
-        note,
-        businesses (
+          id,
+          business_id,
           business_name,
-          phone,
-          email
-        )
-      `
+          service_name,
+          slot_date,
+          slot_time,
+          price,
+          note,
+          businesses (
+            business_name,
+            phone,
+            email
+          )
+        `,
       )
       .eq("id", slotId)
       .single();
 
-    if (slotError || !slot) {
+    if (slotError || !slotData) {
       console.error("Slot not found", slotError);
-
-      return new Response(JSON.stringify({ error: "Slot not found" }), {
-        status: 404,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
-      });
+      return jsonResponse({ error: "Slot not found" }, 404);
     }
 
-    const business = Array.isArray(slot.businesses)
-      ? slot.businesses[0]
-      : slot.businesses;
-
-    const businessEmail = business?.email;
+    const slot = slotData as SlotWithBusiness;
+    const business = getBusinessFromSlot(slot);
+    const businessEmail = business?.email || null;
 
     if (!businessEmail) {
       console.log("Business has no email", {
@@ -158,26 +177,32 @@ serve(async (req) => {
         businessId: slot.business_id,
       });
 
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          skipped: true,
-          reason: "Business has no email",
-        }),
-        {
-          status: 200,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      return jsonResponse({
+        ok: true,
+        skipped: true,
+        reason: "Business has no email",
+      });
     }
 
     const dashboardUrl = siteUrl;
     const slotUrl = `${siteUrl}/?slot=${encodeURIComponent(slot.id)}`;
 
-    const subject = `בקשה חדשה לתור שהתפנה - ${slot.service_name}`;
+    const subject = `בקשה חדשה לתור שהתפנה - ${slot.service_name || "תור"}`;
+
+    const businessName =
+      slot.business_name || business?.business_name || "העסק שלך";
+
+    const priceHtml = slot.price
+      ? `<p style="margin:0 0 6px;"><strong>מחיר:</strong> ${escapeHtml(
+          slot.price,
+        )} ₪</p>`
+      : "";
+
+    const noteHtml = slot.note
+      ? `<p style="margin:0;"><strong>הערה:</strong> ${escapeHtml(
+          slot.note,
+        )}</p>`
+      : "";
 
     const html = `
       <div dir="rtl" style="font-family: Arial, sans-serif; background:#faf7fb; padding:24px; color:#211827;">
@@ -192,33 +217,41 @@ serve(async (req) => {
 
           <div style="background:#fff4fa; border:1px solid #f5c9df; border-radius:14px; padding:16px; margin-bottom:18px;">
             <h2 style="font-size:18px; margin:0 0 10px;">פרטי הלקוחה</h2>
-            <p style="margin:0 0 6px;"><strong>שם:</strong> ${escapeHtml(clientName)}</p>
-            <p style="margin:0;"><strong>טלפון:</strong> ${escapeHtml(clientPhone)}</p>
+            <p style="margin:0 0 6px;"><strong>שם:</strong> ${escapeHtml(
+              clientName,
+            )}</p>
+            <p style="margin:0;"><strong>טלפון:</strong> ${escapeHtml(
+              clientPhone,
+            )}</p>
           </div>
 
           <div style="background:#f8f5fb; border:1px solid #eadce7; border-radius:14px; padding:16px; margin-bottom:22px;">
             <h2 style="font-size:18px; margin:0 0 10px;">פרטי התור</h2>
-            <p style="margin:0 0 6px;"><strong>עסק:</strong> ${escapeHtml(slot.business_name || business?.business_name)}</p>
-            <p style="margin:0 0 6px;"><strong>טיפול:</strong> ${escapeHtml(slot.service_name)}</p>
-            <p style="margin:0 0 6px;"><strong>תאריך:</strong> ${escapeHtml(formatDate(slot.slot_date))}</p>
-            <p style="margin:0 0 6px;"><strong>שעה:</strong> ${escapeHtml(formatTime(slot.slot_time))}</p>
-            ${
-              slot.price
-                ? `<p style="margin:0 0 6px;"><strong>מחיר:</strong> ${escapeHtml(slot.price)} ₪</p>`
-                : ""
-            }
-            ${
-              slot.note
-                ? `<p style="margin:0;"><strong>הערה:</strong> ${escapeHtml(slot.note)}</p>`
-                : ""
-            }
+            <p style="margin:0 0 6px;"><strong>עסק:</strong> ${escapeHtml(
+              businessName,
+            )}</p>
+            <p style="margin:0 0 6px;"><strong>טיפול:</strong> ${escapeHtml(
+              slot.service_name,
+            )}</p>
+            <p style="margin:0 0 6px;"><strong>תאריך:</strong> ${escapeHtml(
+              formatDate(slot.slot_date),
+            )}</p>
+            <p style="margin:0 0 6px;"><strong>שעה:</strong> ${escapeHtml(
+              formatTime(slot.slot_time),
+            )}</p>
+            ${priceHtml}
+            ${noteHtml}
           </div>
 
-          <a href="${dashboardUrl}" style="display:inline-block; background:#ec4899; color:#ffffff; text-decoration:none; font-weight:700; padding:12px 18px; border-radius:12px;">
+          <a href="${escapeHtml(
+            dashboardUrl,
+          )}" style="display:inline-block; background:#ec4899; color:#ffffff; text-decoration:none; font-weight:700; padding:12px 18px; border-radius:12px;">
             פתחי את תורפול
           </a>
 
-          <a href="${slotUrl}" style="display:inline-block; color:#be185d; text-decoration:none; font-weight:700; padding:12px 18px;">
+          <a href="${escapeHtml(
+            slotUrl,
+          )}" style="display:inline-block; color:#be185d; text-decoration:none; font-weight:700; padding:12px 18px;">
             פתיחת התור
           </a>
 
@@ -248,18 +281,12 @@ serve(async (req) => {
     if (!resendResponse.ok) {
       console.error("Resend failed", resendData);
 
-      return new Response(
-        JSON.stringify({
+      return jsonResponse(
+        {
           error: "Resend failed",
           details: resendData,
-        }),
-        {
-          status: 500,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
+        },
+        500,
       );
     }
 
@@ -269,36 +296,21 @@ serve(async (req) => {
       resendData,
     });
 
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        emailSent: true,
-        to: businessEmail,
-        resendData,
-      }),
-      {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    return jsonResponse({
+      ok: true,
+      emailSent: true,
+      to: businessEmail,
+      resendData,
+    });
   } catch (error) {
     console.error("Unexpected server error", error);
 
-    return new Response(
-      JSON.stringify({
-        error: "Unexpected server error",
-        details: String(error),
-      }),
+    return jsonResponse(
       {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
-      }
+        error: "Unexpected server error",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      500,
     );
   }
 });

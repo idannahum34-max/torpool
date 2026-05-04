@@ -1481,35 +1481,34 @@ body {
   .hero-landing + div { grid-template-columns: 1fr !important; }
 }
 
-/* ── Premium marketing sections ── */
+/* ── Premium marketing sections v3 ── */
 .marketing-section {
-  scroll-margin-top: 120px;
-  margin-top: 26px;
+  margin-top: 56px;
+  scroll-margin-top: 110px;
 }
 
-.marketing-head {
-  max-width: 760px;
-  margin: 0 auto 18px;
+.section-head--center {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
+  margin-bottom: 24px;
 }
 
-.marketing-head h2,
-.pricing-card h2 {
-  margin: 6px 0 8px;
-  color: #fff;
-  font-size: clamp(1.7rem, 3.6vw, 2.75rem);
+.section-head--center h2 {
+  font-size: clamp(1.8rem, 4vw, 3.1rem);
   line-height: 1.08;
-  letter-spacing: -0.045em;
+  letter-spacing: -0.035em;
+  margin: 0;
+  color: #fff7fe;
 }
 
-.marketing-head p,
-.pricing-card p,
-.marketing-card p,
-.audience-card p,
-.faq-item p {
+.section-head--center p {
+  max-width: 760px;
+  margin: 8px auto 0;
   color: rgba(245, 235, 255, 0.72);
-  line-height: 1.75;
-  margin: 0;
+  line-height: 1.85;
+  font-size: 1rem;
 }
 
 .marketing-grid {
@@ -1517,103 +1516,143 @@ body {
   gap: 18px;
 }
 
-.marketing-grid--three {
+.marketing-grid--steps {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.marketing-grid--four {
+.marketing-grid--audiences {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .marketing-card,
 .audience-card,
-.faq-item {
+.faq-card {
   padding: 26px;
   overflow: hidden;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.marketing-card h3,
-.audience-card strong,
-.faq-item h3 {
-  display: block;
-  color: #fff;
-  margin: 0 0 9px;
-  font-size: 1.08rem;
+.marketing-card:hover,
+.audience-card:hover,
+.faq-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 179, 218, 0.26);
+  box-shadow: 0 26px 72px rgba(4, 3, 10, 0.52), 0 0 44px rgba(255, 122, 190, 0.08);
 }
 
-.step-number {
-  width: 48px;
-  height: 48px;
+.step-number,
+.audience-icon {
+  width: 46px;
+  height: 46px;
   border-radius: 16px;
   display: grid;
   place-items: center;
   margin-bottom: 14px;
-  font-weight: 950;
+  font-weight: 900;
   color: #1c0e20;
-  background: linear-gradient(135deg, #ffd7e9, #ff7ab9 54%, #bea5ff);
-  box-shadow: 0 18px 38px rgba(255, 121, 185, .22);
+  background: linear-gradient(135deg, #ffd7e9, #c6a8ff 55%, #ff7fbd);
+  box-shadow: 0 14px 34px rgba(230, 126, 202, 0.2), inset 0 1px 0 rgba(255,255,255,0.55);
 }
 
-.audience-card span {
-  width: 42px;
-  height: 42px;
-  border-radius: 15px;
-  display: grid;
-  place-items: center;
-  margin-bottom: 12px;
-  color: #ffd8ea;
-  background: rgba(255, 117, 187, .12);
-  border: 1px solid rgba(255, 155, 209, .22);
+.audience-icon {
+  color: #fff5fb;
+  background: rgba(255, 137, 195, 0.16);
+  border: 1px solid rgba(255, 183, 222, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
 }
 
-.pricing-card {
-  padding: 34px;
-  display: grid;
-  grid-template-columns: 1fr 310px;
-  gap: 26px;
-  align-items: center;
-}
-
-.price-box {
-  border-radius: 28px;
-  padding: 26px;
-  background:
-    radial-gradient(circle at 20% 0%, rgba(255, 129, 192, .22), transparent 42%),
-    rgba(255,255,255,.055);
-  border: 1px solid rgba(255,255,255,.1);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
-}
-
-.price-box span,
-.price-box small {
-  display: block;
-  color: rgba(245, 235, 255, .72);
-}
-
-.price-box strong {
-  display: block;
+.marketing-card h3,
+.audience-card h3,
+.faq-card h3 {
+  position: relative;
+  z-index: 1;
   color: #fff;
-  font-size: 3.2rem;
+  margin: 0 0 10px;
+  font-size: 1.12rem;
+}
+
+.marketing-card p,
+.audience-card p,
+.faq-card p {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: rgba(245, 235, 255, 0.72);
+  line-height: 1.82;
+  font-size: 0.96rem;
+}
+
+.pricing-band {
+  min-height: 300px;
+  padding: clamp(28px, 4vw, 54px);
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 28px;
+  align-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 12% 50%, rgba(255, 205, 231, 0.16), transparent 24%),
+    radial-gradient(circle at 84% 26%, rgba(178, 119, 255, 0.18), transparent 28%),
+    linear-gradient(135deg, rgba(44, 28, 58, 0.96), rgba(26, 17, 36, 0.94));
+}
+
+.pricing-band h2 {
+  color: #fff7fe;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  margin: 10px 0 12px;
+}
+
+.pricing-band p {
+  color: rgba(245, 235, 255, 0.74);
+  line-height: 1.86;
+  max-width: 700px;
+  margin: 0;
+}
+
+.pricing-card-mini {
+  position: relative;
+  z-index: 1;
+  min-height: 230px;
+  padding: 28px;
+  border-radius: 28px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04)),
+    rgba(255,255,255,0.045);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 20px 46px rgba(0,0,0,0.24);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+}
+
+.pricing-card-mini span,
+.pricing-card-mini small {
+  color: rgba(245,235,255,0.72);
+  font-weight: 700;
+}
+
+.pricing-card-mini strong {
+  display: block;
+  font-size: clamp(2.6rem, 6vw, 4rem);
   line-height: 1;
-  margin: 8px 0 6px;
-  letter-spacing: -.05em;
+  color: #fff;
+  letter-spacing: -0.04em;
 }
 
-.price-box .btn {
-  margin-top: 18px;
-}
-
-.faq-list {
+.faq-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 18px;
 }
 
 @media (max-width: 980px) {
-  .marketing-grid--three,
-  .marketing-grid--four,
-  .faq-list,
-  .pricing-card {
+  .marketing-grid--steps,
+  .marketing-grid--audiences,
+  .faq-grid,
+  .pricing-band {
     grid-template-columns: 1fr;
   }
 }

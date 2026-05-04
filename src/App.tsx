@@ -122,24 +122,6 @@ function statusChip(s: string) {
   return "chip chip--open";
 }
 
-function getOwnerDisplayName(user: User | null, business: Business | null) {
-  const meta = (user?.user_metadata || {}) as Record<string, unknown>;
-  const raw =
-    meta.full_name ||
-    meta.name ||
-    meta.display_name ||
-    meta.user_name ||
-    business?.business_name ||
-    user?.email?.split("@")[0] ||
-    "";
-  return String(raw).trim() || "עסק";
-}
-
-function scrollToMarketingSection(id: string) {
-  const el = document.getElementById(id);
-  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
 /* ─── Toast hook ─────────────────────────────────────────── */
 
 function useToast() {
@@ -218,6 +200,37 @@ function Logo() {
   );
 }
 
+function getOwnerDisplayName(user: User | null, business: Business | null) {
+  const metadata = user?.user_metadata as
+    | {
+        full_name?: string;
+        name?: string;
+        display_name?: string;
+      }
+    | undefined;
+
+  const fromMetadata =
+    metadata?.full_name ||
+    metadata?.name ||
+    metadata?.display_name;
+
+  if (fromMetadata && fromMetadata.trim()) {
+    return fromMetadata.trim();
+  }
+
+  if (business?.business_name && business.business_name.trim()) {
+    return business.business_name.trim();
+  }
+
+  const emailName = user?.email?.split("@")[0];
+
+  if (emailName && emailName.trim()) {
+    return emailName.trim();
+  }
+
+  return "בעלת העסק";
+}
+
 /* ─── App ────────────────────────────────────────────────── */
 
 export default function App() {
@@ -275,6 +288,24 @@ export default function App() {
   const clientLink = slot ? `${window.location.origin}/?slot=${slot.id}&view=client` : "";
   const waitlistLink = business ? `${window.location.origin}/?business=${business.id}&view=waitlist` : "";
   const ownerDisplayName = getOwnerDisplayName(user, business);
+
+  function goToSignup() {
+    setAuthMode("register");
+    window.setTimeout(() => {
+      document.getElementById("signup")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+  }
+
+  function scrollToMarketingSection(sectionId: string) {
+    const target = document.getElementById(sectionId);
+
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   /* ── init ── */
   useEffect(() => {
@@ -1046,11 +1077,11 @@ export default function App() {
             <div className="top-tabs public-nav">
               <button className="top-tab active" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>בית</button>
               <button className="top-tab" onClick={() => scrollToMarketingSection("how-it-works")}>איך זה עובד</button>
-              <button className="top-tab" onClick={() => scrollToMarketingSection("audience")}>למי זה מתאים</button>
+              <button className="top-tab" onClick={() => scrollToMarketingSection("who-for")}>למי זה מתאים</button>
               <button className="top-tab" onClick={() => scrollToMarketingSection("pricing")}>מחירים</button>
               <button className="top-tab" onClick={() => scrollToMarketingSection("faq")}>שאלות ותשובות</button>
             </div>
-            <button className="btn btn--primary btn--small" onClick={() => setAuthMode("register")}>התחילי עכשיו</button>
+            <button className="btn btn--primary btn--small" onClick={goToSignup}>התחילי עכשיו</button>
           </div>
         )}
 
@@ -1093,7 +1124,7 @@ export default function App() {
                   <span className="pill">פחות זמן מת ביומן</span>
                 </div>
               </div>
-              <div className="auth-panel">
+              <div className="auth-panel" id="signup">
                 <span className="section-kicker">כניסה למערכת</span>
                 <h3 className="auth-title">הצטרפי לתורפול</h3>
                 <p className="auth-subtitle">פתיחת חשבון לוקחת פחות מדקה</p>
@@ -1136,19 +1167,19 @@ export default function App() {
               </div>
             </div>
 
-            <section id="how-it-works" className="marketing-section">
-              <div className="marketing-head">
+            <section className="marketing-section" id="how-it-works">
+              <div className="section-head section-head--center">
                 <span className="section-kicker">איך זה עובד</span>
                 <h2>שלושה צעדים פשוטים למילוי תור שהתבטל</h2>
-                <p>במקום הודעות מפוזרות וסטורי שנעלם, כל הבקשות נכנסות למקום אחד — ואת בוחרת למי לאשר.</p>
+                <p>בלי לרדוף אחרי הודעות, בלי לאבד פרטים, ובלי להתחיל מאפס בכל ביטול.</p>
               </div>
-              <div className="marketing-grid marketing-grid--three">
+              <div className="marketing-grid marketing-grid--steps">
                 {[
-                  { n: "01", t: "פותחת תור שהתפנה", d: "מזינה טיפול, תאריך, שעה, מחיר והערה. המערכת יוצרת לינק נקי לשיתוף." },
-                  { n: "02", t: "לקוחות משאירות בקשה", d: "הלקוחות נכנסות בלי חשבון, משאירות שם וטלפון, וכל הבקשות נאספות אצלך בדשבורד." },
-                  { n: "03", t: "מאשרת וסוגרת", d: "את מאשרת לקוחה אחת. השאר מסומנות אוטומטית כנדחו והתור נסגר בצורה מסודרת." },
+                  { n: "01", t: "מפרסמות תור שהתפנה", d: "מכניסות טיפול, שעה, מחיר והערה — ומקבלות לינק נקי לשיתוף ב־WhatsApp או בסטורי." },
+                  { n: "02", t: "מקבלות בקשות מסודרות", d: "כל הלקוחות שמעוניינות מופיעות במקום אחד עם שם, טלפון ושעת בקשה — בלי בלגן בצ׳אטים." },
+                  { n: "03", t: "מאשרות וסוגרות את החור", d: "בוחרות לקוחה מתאימה, סוגרות את התור, ושאר הבקשות מסומנות אוטומטית כלא רלוונטיות." },
                 ].map(f => (
-                  <div key={f.n} className="glass-card marketing-card">
+                  <div key={f.n} className="glass-card marketing-card step-card">
                     <div className="step-number">{f.n}</div>
                     <h3>{f.t}</h3>
                     <p>{f.d}</p>
@@ -1157,52 +1188,59 @@ export default function App() {
               </div>
             </section>
 
-            <section id="audience" className="marketing-section">
-              <div className="marketing-head">
+            <section className="marketing-section" id="who-for">
+              <div className="section-head section-head--center">
                 <span className="section-kicker">למי זה מתאים</span>
                 <h2>לכל בעלת עסק שהיומן שלה שווה כסף</h2>
-                <p>תורפול בנוי במיוחד לעסקים שבהם ביטול של שעה הוא הפסד הכנסה אמיתי.</p>
+                <p>תורפול בנוי לעסקים שבהם ביטול של שעה הוא הפסד הכנסה אמיתי — לא עוד "אולי מישהי תראה בסטורי".</p>
               </div>
-              <div className="marketing-grid marketing-grid--four">
-                {["מניקוריסטיות", "קוסמטיקאיות", "מעצבות גבות", "מטפלות יופי"].map(item => (
-                  <div className="glass-card audience-card" key={item}>
-                    <span>✦</span>
-                    <strong>{item}</strong>
-                    <p>תורים חוזרים, לקוחות קבועות, וחורים ביומן שצריך למלא מהר.</p>
+              <div className="marketing-grid marketing-grid--audiences">
+                {[
+                  { t: "מניקוריסטיות", d: "לק ג׳ל, בנייה, מילוי ותיקונים — תורים קצרים שקל למלא אם שולחים אותם מהר לקהל הנכון." },
+                  { t: "קוסמטיקאיות", d: "טיפולי פנים, גבות ושיקום עור — ביטול אחד יכול להיות מאות שקלים שלא חייבים להיעלם." },
+                  { t: "מעצבות גבות וריסים", d: "שעות מבוקשות שמתפנות ברגע האחרון ומושלמות לרשימת המתנה מקומית." },
+                  { t: "מטפלות יופי עצמאיות", d: "עסקים קטנים בלי מזכירה, שרוצות כלי פשוט שיחסוך הודעות, תזכורות ורדיפה אחרי לקוחות." },
+                ].map(item => (
+                  <div key={item.t} className="glass-card audience-card">
+                    <div className="audience-icon">✦</div>
+                    <h3>{item.t}</h3>
+                    <p>{item.d}</p>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section id="pricing" className="marketing-section">
-              <div className="glass-card pricing-card">
+            <section className="marketing-section" id="pricing">
+              <div className="glass-card pricing-band">
                 <div>
                   <span className="section-kicker">מחירים</span>
                   <h2>מחיר פיילוט פשוט. בלי התחייבות.</h2>
-                  <p>מתאים לשלב שבו את רוצה לבדוק אם תורפול באמת מחזיר לך כסף מתורים שהתבטלו.</p>
+                  <p>
+                    מתאים לשלב שבו את רוצה לבדוק אם תורפול באמת מחזיר לך כסף מתורים שהתבטלו — לפני שמתחייבים למערכת גדולה.
+                  </p>
                 </div>
-                <div className="price-box">
+                <div className="pricing-card-mini">
                   <span>החל מ־</span>
                   <strong>49 ₪</strong>
                   <small>לחודש בתקופת הפיילוט</small>
-                  <button className="btn btn--primary btn--full" onClick={() => setAuthMode("register")}>התחילי עכשיו</button>
+                  <button className="btn btn--primary btn--full" type="button" onClick={goToSignup}>תתחילי עכשיו</button>
                 </div>
               </div>
             </section>
 
-            <section id="faq" className="marketing-section">
-              <div className="marketing-head">
+            <section className="marketing-section" id="faq">
+              <div className="section-head section-head--center">
                 <span className="section-kicker">שאלות ותשובות</span>
                 <h2>מה חשוב לדעת לפני שמתחילות?</h2>
               </div>
-              <div className="faq-list">
+              <div className="faq-grid">
                 {[
-                  { q: "האם לקוחות צריכות לפתוח חשבון?", a: "לא. לקוחה מקבלת לינק, משאירה שם וטלפון, ואת רואה את הבקשה במערכת." },
-                  { q: "האם התור מאושר אוטומטית?", a: "לא. את נשארת בשליטה ובוחרת למי לאשר את התור." },
-                  { q: "מה קורה אם כמה לקוחות מבקשות את אותו תור?", a: "כולן מופיעות אצלך מסודר. כשאת מאשרת אחת, המערכת מסמנת את השאר כנדחו." },
-                  { q: "אפשר להשתמש רק ברשימת המתנה?", a: "כן. אפשר לשלוח לינק קבוע לרשימת המתנה גם בלי לפרסם תור מסוים." },
+                  { q: "לקוחות צריכות לפתוח חשבון?", a: "לא. לקוחה מקבלת לינק, משאירה שם וטלפון, ואת רואה את הבקשה בדשבורד." },
+                  { q: "אפשר להשתמש עם WhatsApp?", a: "כן. תורפול בנוי סביב שיתוף מהיר ב־WhatsApp, סטורי ורשימות תפוצה קיימות." },
+                  { q: "מי מאשרת את התור?", a: "את. השארת פרטים לא סוגרת תור אוטומטית — את בוחרת למי לאשר." },
+                  { q: "מה קורה עם רשימת המתנה?", a: "לקוחות יכולות להירשם מראש בלי חשבון, ורק את כבעלת העסק רואה ומנהלת את הרשימה." },
                 ].map(item => (
-                  <div className="glass-card faq-item" key={item.q}>
+                  <div key={item.q} className="glass-card faq-card">
                     <h3>{item.q}</h3>
                     <p>{item.a}</p>
                   </div>
