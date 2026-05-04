@@ -122,6 +122,24 @@ function statusChip(s: string) {
   return "chip chip--open";
 }
 
+function getOwnerDisplayName(user: User | null, business: Business | null) {
+  const meta = (user?.user_metadata || {}) as Record<string, unknown>;
+  const raw =
+    meta.full_name ||
+    meta.name ||
+    meta.display_name ||
+    meta.user_name ||
+    business?.business_name ||
+    user?.email?.split("@")[0] ||
+    "";
+  return String(raw).trim() || "עסק";
+}
+
+function scrollToMarketingSection(id: string) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 /* ─── Toast hook ─────────────────────────────────────────── */
 
 function useToast() {
@@ -256,6 +274,7 @@ export default function App() {
 
   const clientLink = slot ? `${window.location.origin}/?slot=${slot.id}&view=client` : "";
   const waitlistLink = business ? `${window.location.origin}/?business=${business.id}&view=waitlist` : "";
+  const ownerDisplayName = getOwnerDisplayName(user, business);
 
   /* ── init ── */
   useEffect(() => {
@@ -1025,11 +1044,11 @@ export default function App() {
           <div className="dashboard-header public-header">
             <Logo />
             <div className="top-tabs public-nav">
-              <button className="top-tab active">בית</button>
-              <button className="top-tab">איך זה עובד</button>
-              <button className="top-tab">למי זה מתאים</button>
-              <button className="top-tab">מחירים</button>
-              <button className="top-tab">שאלות ותשובות</button>
+              <button className="top-tab active" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>בית</button>
+              <button className="top-tab" onClick={() => scrollToMarketingSection("how-it-works")}>איך זה עובד</button>
+              <button className="top-tab" onClick={() => scrollToMarketingSection("audience")}>למי זה מתאים</button>
+              <button className="top-tab" onClick={() => scrollToMarketingSection("pricing")}>מחירים</button>
+              <button className="top-tab" onClick={() => scrollToMarketingSection("faq")}>שאלות ותשובות</button>
             </div>
             <button className="btn btn--primary btn--small" onClick={() => setAuthMode("register")}>התחילי עכשיו</button>
           </div>
@@ -1117,19 +1136,79 @@ export default function App() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "18px", marginTop: "22px" }}>
-              {[
-                { n: "01", t: "לינק אחד במקום בלגן", d: "מפרסמת תור שהתפנה ושולחת לינק מסודר לסטורי, WhatsApp או רשימת תפוצה." },
-                { n: "02", t: "בקשות מסודרות בזמן אמת", d: "במקום עשר הודעות פרטיות, את רואה את כל מי שרוצה את התור במסך אחד." },
-                { n: "03", t: "רשימת המתנה חכמה",   d: "לקוחות יכולות להירשם מראש, וכשמתפנה תור את לא מתחילה מאפס." },
-              ].map(f => (
-                <div key={f.n} className="glass-card" style={{ padding: "26px" }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg,#ffd7e9,#bea5ff)", display: "grid", placeItems: "center", fontWeight: 900, color: "#1c0e20", marginBottom: 12 }}>{f.n}</div>
-                  <h3 style={{ color: "#fff", margin: "0 0 8px" }}>{f.t}</h3>
-                  <p style={{ color: "rgba(245,235,255,0.7)", lineHeight: 1.7, margin: 0 }}>{f.d}</p>
+            <section id="how-it-works" className="marketing-section">
+              <div className="marketing-head">
+                <span className="section-kicker">איך זה עובד</span>
+                <h2>שלושה צעדים פשוטים למילוי תור שהתבטל</h2>
+                <p>במקום הודעות מפוזרות וסטורי שנעלם, כל הבקשות נכנסות למקום אחד — ואת בוחרת למי לאשר.</p>
+              </div>
+              <div className="marketing-grid marketing-grid--three">
+                {[
+                  { n: "01", t: "פותחת תור שהתפנה", d: "מזינה טיפול, תאריך, שעה, מחיר והערה. המערכת יוצרת לינק נקי לשיתוף." },
+                  { n: "02", t: "לקוחות משאירות בקשה", d: "הלקוחות נכנסות בלי חשבון, משאירות שם וטלפון, וכל הבקשות נאספות אצלך בדשבורד." },
+                  { n: "03", t: "מאשרת וסוגרת", d: "את מאשרת לקוחה אחת. השאר מסומנות אוטומטית כנדחו והתור נסגר בצורה מסודרת." },
+                ].map(f => (
+                  <div key={f.n} className="glass-card marketing-card">
+                    <div className="step-number">{f.n}</div>
+                    <h3>{f.t}</h3>
+                    <p>{f.d}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section id="audience" className="marketing-section">
+              <div className="marketing-head">
+                <span className="section-kicker">למי זה מתאים</span>
+                <h2>לכל בעלת עסק שהיומן שלה שווה כסף</h2>
+                <p>תורפול בנוי במיוחד לעסקים שבהם ביטול של שעה הוא הפסד הכנסה אמיתי.</p>
+              </div>
+              <div className="marketing-grid marketing-grid--four">
+                {["מניקוריסטיות", "קוסמטיקאיות", "מעצבות גבות", "מטפלות יופי"].map(item => (
+                  <div className="glass-card audience-card" key={item}>
+                    <span>✦</span>
+                    <strong>{item}</strong>
+                    <p>תורים חוזרים, לקוחות קבועות, וחורים ביומן שצריך למלא מהר.</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section id="pricing" className="marketing-section">
+              <div className="glass-card pricing-card">
+                <div>
+                  <span className="section-kicker">מחירים</span>
+                  <h2>מחיר פיילוט פשוט. בלי התחייבות.</h2>
+                  <p>מתאים לשלב שבו את רוצה לבדוק אם תורפול באמת מחזיר לך כסף מתורים שהתבטלו.</p>
                 </div>
-              ))}
-            </div>
+                <div className="price-box">
+                  <span>החל מ־</span>
+                  <strong>49 ₪</strong>
+                  <small>לחודש בתקופת הפיילוט</small>
+                  <button className="btn btn--primary btn--full" onClick={() => setAuthMode("register")}>התחילי עכשיו</button>
+                </div>
+              </div>
+            </section>
+
+            <section id="faq" className="marketing-section">
+              <div className="marketing-head">
+                <span className="section-kicker">שאלות ותשובות</span>
+                <h2>מה חשוב לדעת לפני שמתחילות?</h2>
+              </div>
+              <div className="faq-list">
+                {[
+                  { q: "האם לקוחות צריכות לפתוח חשבון?", a: "לא. לקוחה מקבלת לינק, משאירה שם וטלפון, ואת רואה את הבקשה במערכת." },
+                  { q: "האם התור מאושר אוטומטית?", a: "לא. את נשארת בשליטה ובוחרת למי לאשר את התור." },
+                  { q: "מה קורה אם כמה לקוחות מבקשות את אותו תור?", a: "כולן מופיעות אצלך מסודר. כשאת מאשרת אחת, המערכת מסמנת את השאר כנדחו." },
+                  { q: "אפשר להשתמש רק ברשימת המתנה?", a: "כן. אפשר לשלוח לינק קבוע לרשימת המתנה גם בלי לפרסם תור מסוים." },
+                ].map(item => (
+                  <div className="glass-card faq-item" key={item.q}>
+                    <h3>{item.q}</h3>
+                    <p>{item.a}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
           </>
         )}
 
@@ -1156,7 +1235,7 @@ export default function App() {
               <div className="hero-copy">
                 <div className="eyebrow">דשבורד · {business.business_name}</div>
                 <h1 style={{ fontSize: "clamp(1.8rem,3.5vw,3rem)", margin: "0 0 12px" }}>
-                  שלום דניאל 👋
+                  שלום {ownerDisplayName} 👋
                 </h1>
                 <p className="hero-desc">
                   כל תור שבוטל הוא הזדמנות למלא מחדש. נהלי תורים מבוטלים, צמצמי ביטולים ושמרי על יומן מלא.
