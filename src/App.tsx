@@ -549,8 +549,12 @@ export default function App() {
     const clientPhone = String(form.get("clientPhone") || "").trim();
     if (!clientName || !clientPhone) { showToast("צריך למלא שם וטלפון", "error"); setLoading(false); return; }
     const { data, error } = await supabase.from("claims").insert({
-      slot_id: slot.id, client_name: clientName, client_phone: clientPhone, status: "pending",
-    }).select().single();
+  slot_id: slot.id,
+  client_name: clientName,
+  client_phone: clientPhone,
+  normalized_client_phone: normalizePhone(clientPhone),
+  status: "pending",
+}).select().single();
     if (error) { showToast("שגיאה בשליחת הבקשה. נסי שוב בעוד רגע.", "error"); setLoading(false); return; }
     await sendClaimEmail(slot.id, clientName, clientPhone);
     const inserted = data as Claim;
@@ -570,16 +574,17 @@ export default function App() {
     const clientName = String(form.get("clientName") || "").trim();
     const clientPhone = String(form.get("clientPhone") || "").trim();
     if (!clientName || !clientPhone) { showToast("צריך למלא שם וטלפון", "error"); setLoading(false); return; }
-    const { error } = await supabase.from("waitlist_entries").insert({
-      business_id: waitlistBusinessId,
-      client_name: clientName,
-      client_phone: clientPhone,
-      service_interest: String(form.get("serviceInterest") || "").trim(),
-      preferred_days: String(form.get("preferredDays") || "").trim(),
-      preferred_times: String(form.get("preferredTimes") || "").trim(),
-      note: String(form.get("note") || "").trim(),
-      status: "active",
-    });
+   const { error } = await supabase.from("waitlist_entries").insert({
+  business_id: waitlistBusinessId,
+  client_name: clientName,
+  client_phone: clientPhone,
+  normalized_client_phone: normalizePhone(clientPhone),
+  service_interest: String(form.get("serviceInterest") || "").trim(),
+  preferred_days: String(form.get("preferredDays") || "").trim(),
+  preferred_times: String(form.get("preferredTimes") || "").trim(),
+  note: String(form.get("note") || "").trim(),
+  status: "active",
+});
     if (error) { showToast("לא הצלחתי להצטרף לרשימת ההמתנה. נסי שוב.", "error"); setLoading(false); return; }
     setWaitlistSubmitted(true);
     setLoading(false);
@@ -600,10 +605,9 @@ export default function App() {
     });
     if (!ok) return;
     setLoading(true);
-    await supabase.from("claims").update({ status: "approved" }).eq("id", c.id);
-    await supabase.from("claims").update({ status: "rejected" })
-      .eq("slot_id", activeSlot.id).neq("id", c.id).eq("status", "pending");
-    const { error } = await supabase.from("slots").update({ status: "confirmed" }).eq("id", activeSlot.id);
+   const { error } = await supabase.rpc("approve_claim", {
+  p_claim_id: c.id,
+});
     if (error) { showToast("שגיאה בסגירת התור", "error"); setLoading(false); return; }
     showToast("התור נסגר בהצלחה ✓", "success");
     await loadStats(business.id);
