@@ -1930,3 +1930,267 @@ body {
     font-size: clamp(1.4rem, 8vw, 1.9rem) !important;
   }
 }
+
+
+/* =========================================================
+   TORPOOL MARKETING SECTIONS FIX v9
+   Fixes desktop cards becoming one huge column.
+   This block intentionally comes AFTER older CSS.
+   ========================================================= */
+
+.section-head--center {
+  max-width: 860px;
+  margin: 0 auto 22px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.section-head--center h2 {
+  margin: 8px 0 8px;
+  color: #fff;
+  font-size: clamp(2rem, 4.2vw, 3.2rem);
+  line-height: 1.1;
+  letter-spacing: -0.045em;
+}
+
+.section-head--center p {
+  max-width: 760px;
+  margin: 0 auto;
+  color: rgba(245, 235, 255, 0.72);
+  line-height: 1.8;
+  font-size: 1.02rem;
+}
+
+.marketing-grid--steps,
+.marketing-grid--audiences,
+.faq-grid {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+  align-items: stretch;
+}
+
+.marketing-card,
+.audience-card,
+.faq-card {
+  position: relative;
+  padding: 28px;
+  min-height: 190px;
+  border-radius: 28px;
+  overflow: hidden;
+}
+
+.marketing-card::after,
+.audience-card::after,
+.faq-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 18px 18px auto;
+  width: 82px;
+  height: 82px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 128, 190, .12), transparent 70%);
+  pointer-events: none;
+}
+
+.marketing-card h3,
+.audience-card h3,
+.faq-card h3 {
+  color: #fff;
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+  line-height: 1.35;
+  font-weight: 900;
+}
+
+.marketing-card p,
+.audience-card p,
+.faq-card p {
+  color: rgba(245, 235, 255, 0.72);
+  margin: 0;
+  line-height: 1.78;
+  font-size: .98rem;
+}
+
+.step-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.step-number {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 16px;
+  font-weight: 950;
+  color: #231128;
+  background: linear-gradient(135deg, #ffd7e9, #ff7ab9 54%, #bea5ff);
+  box-shadow: 0 18px 38px rgba(255, 121, 185, .22);
+}
+
+.audience-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 16px;
+  color: #ffd8ea;
+  background: rgba(255, 117, 187, .12);
+  border: 1px solid rgba(255, 155, 209, .22);
+  font-size: 1.15rem;
+}
+
+.pricing-band {
+  display: grid;
+  gap: 28px;
+  align-items: center;
+  padding: 38px;
+  border-radius: 34px;
+}
+
+.pricing-band h2 {
+  margin: 8px 0 10px;
+  color: #fff;
+  font-size: clamp(2rem, 4.1vw, 3.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+}
+
+.pricing-band p {
+  color: rgba(245, 235, 255, .72);
+  line-height: 1.8;
+  margin: 0;
+  max-width: 760px;
+}
+
+.pricing-card-mini {
+  border-radius: 28px;
+  padding: 26px;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255, 129, 192, .24), transparent 42%),
+    rgba(255,255,255,.055);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+  text-align: center;
+}
+
+.pricing-card-mini span,
+.pricing-card-mini small {
+  display: block;
+  color: rgba(245, 235, 255, .72);
+  font-weight: 700;
+}
+
+.pricing-card-mini strong {
+  display: block;
+  color: #fff;
+  font-size: 3.2rem;
+  line-height: 1;
+  margin: 8px 0 6px;
+  letter-spacing: -.05em;
+}
+
+.pricing-card-mini .btn {
+  margin-top: 18px;
+}
+
+@media (min-width: 981px) {
+  .marketing-grid--steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .marketing-grid--audiences {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .faq-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pricing-band {
+    grid-template-columns: minmax(0, 1fr) 310px;
+  }
+
+  .marketing-card,
+  .audience-card,
+  .faq-card {
+    text-align: right;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 980px) {
+  .marketing-grid--steps,
+  .marketing-grid--audiences,
+  .faq-grid,
+  .pricing-band {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .marketing-section {
+    margin-top: 22px;
+    scroll-margin-top: 84px;
+  }
+
+  .section-head--center {
+    margin-bottom: 16px;
+    padding: 0 4px;
+  }
+
+  .section-head--center h2 {
+    font-size: clamp(1.65rem, 8.5vw, 2.25rem) !important;
+    line-height: 1.18 !important;
+  }
+
+  .section-head--center p {
+    font-size: .98rem !important;
+    line-height: 1.72 !important;
+  }
+
+  .marketing-grid--steps,
+  .marketing-grid--audiences,
+  .faq-grid,
+  .pricing-band {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    width: 100% !important;
+  }
+
+  .marketing-card,
+  .audience-card,
+  .faq-card {
+    min-height: auto !important;
+    padding: 20px !important;
+    text-align: center !important;
+  }
+
+  .step-number,
+  .audience-icon {
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .pricing-band {
+    padding: 20px !important;
+    text-align: center !important;
+  }
+
+  .pricing-band h2 {
+    font-size: clamp(1.75rem, 8.5vw, 2.35rem) !important;
+  }
+
+  .pricing-card-mini {
+    padding: 22px !important;
+  }
+
+  .pricing-card-mini strong {
+    font-size: 2.8rem !important;
+  }
+}
