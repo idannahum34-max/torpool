@@ -1481,34 +1481,35 @@ body {
   .hero-landing + div { grid-template-columns: 1fr !important; }
 }
 
-/* ── Premium marketing sections v3 ── */
+/* ── Premium marketing sections ── */
 .marketing-section {
-  margin-top: 56px;
-  scroll-margin-top: 110px;
+  scroll-margin-top: 120px;
+  margin-top: 26px;
 }
 
-.section-head--center {
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.section-head--center h2 {
-  font-size: clamp(1.8rem, 4vw, 3.1rem);
-  line-height: 1.08;
-  letter-spacing: -0.035em;
-  margin: 0;
-  color: #fff7fe;
-}
-
-.section-head--center p {
+.marketing-head {
   max-width: 760px;
-  margin: 8px auto 0;
+  margin: 0 auto 18px;
+  text-align: center;
+}
+
+.marketing-head h2,
+.pricing-card h2 {
+  margin: 6px 0 8px;
+  color: #fff;
+  font-size: clamp(1.7rem, 3.6vw, 2.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+}
+
+.marketing-head p,
+.pricing-card p,
+.marketing-card p,
+.audience-card p,
+.faq-item p {
   color: rgba(245, 235, 255, 0.72);
-  line-height: 1.85;
-  font-size: 1rem;
+  line-height: 1.75;
+  margin: 0;
 }
 
 .marketing-grid {
@@ -1516,143 +1517,416 @@ body {
   gap: 18px;
 }
 
-.marketing-grid--steps {
+.marketing-grid--three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.marketing-grid--audiences {
+.marketing-grid--four {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .marketing-card,
 .audience-card,
-.faq-card {
+.faq-item {
   padding: 26px;
   overflow: hidden;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.marketing-card:hover,
-.audience-card:hover,
-.faq-card:hover {
-  transform: translateY(-3px);
-  border-color: rgba(255, 179, 218, 0.26);
-  box-shadow: 0 26px 72px rgba(4, 3, 10, 0.52), 0 0 44px rgba(255, 122, 190, 0.08);
+.marketing-card h3,
+.audience-card strong,
+.faq-item h3 {
+  display: block;
+  color: #fff;
+  margin: 0 0 9px;
+  font-size: 1.08rem;
 }
 
-.step-number,
-.audience-icon {
-  width: 46px;
-  height: 46px;
+.step-number {
+  width: 48px;
+  height: 48px;
   border-radius: 16px;
   display: grid;
   place-items: center;
   margin-bottom: 14px;
-  font-weight: 900;
+  font-weight: 950;
   color: #1c0e20;
-  background: linear-gradient(135deg, #ffd7e9, #c6a8ff 55%, #ff7fbd);
-  box-shadow: 0 14px 34px rgba(230, 126, 202, 0.2), inset 0 1px 0 rgba(255,255,255,0.55);
+  background: linear-gradient(135deg, #ffd7e9, #ff7ab9 54%, #bea5ff);
+  box-shadow: 0 18px 38px rgba(255, 121, 185, .22);
 }
 
-.audience-icon {
-  color: #fff5fb;
-  background: rgba(255, 137, 195, 0.16);
-  border: 1px solid rgba(255, 183, 222, 0.22);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
-}
-
-.marketing-card h3,
-.audience-card h3,
-.faq-card h3 {
-  position: relative;
-  z-index: 1;
-  color: #fff;
-  margin: 0 0 10px;
-  font-size: 1.12rem;
-}
-
-.marketing-card p,
-.audience-card p,
-.faq-card p {
-  position: relative;
-  z-index: 1;
-  margin: 0;
-  color: rgba(245, 235, 255, 0.72);
-  line-height: 1.82;
-  font-size: 0.96rem;
-}
-
-.pricing-band {
-  min-height: 300px;
-  padding: clamp(28px, 4vw, 54px);
+.audience-card span {
+  width: 42px;
+  height: 42px;
+  border-radius: 15px;
   display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 28px;
+  place-items: center;
+  margin-bottom: 12px;
+  color: #ffd8ea;
+  background: rgba(255, 117, 187, .12);
+  border: 1px solid rgba(255, 155, 209, .22);
+}
+
+.pricing-card {
+  padding: 34px;
+  display: grid;
+  grid-template-columns: 1fr 310px;
+  gap: 26px;
   align-items: center;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 12% 50%, rgba(255, 205, 231, 0.16), transparent 24%),
-    radial-gradient(circle at 84% 26%, rgba(178, 119, 255, 0.18), transparent 28%),
-    linear-gradient(135deg, rgba(44, 28, 58, 0.96), rgba(26, 17, 36, 0.94));
 }
 
-.pricing-band h2 {
-  color: #fff7fe;
-  font-size: clamp(2rem, 4vw, 3.25rem);
-  line-height: 1.08;
-  letter-spacing: -0.035em;
-  margin: 10px 0 12px;
-}
-
-.pricing-band p {
-  color: rgba(245, 235, 255, 0.74);
-  line-height: 1.86;
-  max-width: 700px;
-  margin: 0;
-}
-
-.pricing-card-mini {
-  position: relative;
-  z-index: 1;
-  min-height: 230px;
-  padding: 28px;
+.price-box {
   border-radius: 28px;
-  border: 1px solid rgba(255,255,255,0.14);
+  padding: 26px;
   background:
-    linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04)),
-    rgba(255,255,255,0.045);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 20px 46px rgba(0,0,0,0.24);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 12px;
+    radial-gradient(circle at 20% 0%, rgba(255, 129, 192, .22), transparent 42%),
+    rgba(255,255,255,.055);
+  border: 1px solid rgba(255,255,255,.1);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
 }
 
-.pricing-card-mini span,
-.pricing-card-mini small {
-  color: rgba(245,235,255,0.72);
-  font-weight: 700;
-}
-
-.pricing-card-mini strong {
+.price-box span,
+.price-box small {
   display: block;
-  font-size: clamp(2.6rem, 6vw, 4rem);
-  line-height: 1;
-  color: #fff;
-  letter-spacing: -0.04em;
+  color: rgba(245, 235, 255, .72);
 }
 
-.faq-grid {
+.price-box strong {
+  display: block;
+  color: #fff;
+  font-size: 3.2rem;
+  line-height: 1;
+  margin: 8px 0 6px;
+  letter-spacing: -.05em;
+}
+
+.price-box .btn {
+  margin-top: 18px;
+}
+
+.faq-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: 16px;
 }
 
 @media (max-width: 980px) {
-  .marketing-grid--steps,
-  .marketing-grid--audiences,
-  .faq-grid,
-  .pricing-band {
+  .marketing-grid--three,
+  .marketing-grid--four,
+  .faq-list,
+  .pricing-card {
     grid-template-columns: 1fr;
+  }
+}
+
+
+/* =========================================================
+   TORPOOL MOBILE EMERGENCY FIX v8
+   Paste this at the VERY BOTTOM of src/index.css.
+   This specifically overrides INLINE grid styles in App.tsx.
+   ========================================================= */
+
+@media (max-width: 768px) {
+  html,
+  body,
+  #root {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  body {
+    min-width: 0 !important;
+  }
+
+  .page {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  .shell {
+    width: calc(100% - 20px) !important;
+    max-width: calc(100% - 20px) !important;
+    min-width: 0 !important;
+    margin: 0 auto !important;
+    padding: 14px 0 90px !important;
+    overflow-x: hidden !important;
+  }
+
+  /* The real bug: App.tsx has inline grid styles like repeat(4,1fr).
+     CSS classes did not catch them. These selectors do. */
+  .shell [style*="grid-template-columns"],
+  .shell [style*="gridTemplateColumns"],
+  .shell [style*="repeat(4"],
+  .shell [style*="repeat(3"],
+  .shell [style*="repeat(2"] {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  .shell [style*="max-width"],
+  .shell [style*="maxWidth"] {
+    max-width: 100% !important;
+  }
+
+  .shell [style*="padding"] {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .glass-card,
+  .panel,
+  .hero-landing,
+  .hero-dashboard,
+  .public-layout,
+  .paywall-grid,
+  .dash-grid,
+  .dashboard-grid,
+  .waitlist-layout,
+  .auth-panel,
+  .public-summary,
+  .public-form-card {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    border-radius: 24px !important;
+  }
+
+  .hero-landing,
+  .hero-dashboard {
+    padding: 18px !important;
+    min-height: auto !important;
+  }
+
+  .dashboard-header,
+  .public-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    padding: 12px !important;
+    border-radius: 22px !important;
+  }
+
+  .top-tabs,
+  .public-nav {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .top-tab {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 42px !important;
+    padding: 9px 10px !important;
+    font-size: 0.88rem !important;
+    line-height: 1.25 !important;
+    white-space: normal !important;
+    text-align: center !important;
+  }
+
+  .brandbar {
+    width: 100% !important;
+    justify-content: center !important;
+    margin-bottom: 0 !important;
+  }
+
+  .hero-copy,
+  .hero-main,
+  .auth-panel {
+    min-width: 0 !important;
+    width: 100% !important;
+    text-align: center !important;
+  }
+
+  h1,
+  .hero-copy h1,
+  .hero-main h1 {
+    font-size: clamp(2rem, 9.4vw, 2.75rem) !important;
+    line-height: 1.14 !important;
+    letter-spacing: -0.025em !important;
+    max-width: 100% !important;
+    text-align: center !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    hyphens: none !important;
+  }
+
+  h2 {
+    font-size: clamp(1.55rem, 7vw, 2.1rem) !important;
+    line-height: 1.2 !important;
+    max-width: 100% !important;
+    text-align: center !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    hyphens: none !important;
+  }
+
+  h3 {
+    font-size: 1.2rem !important;
+    line-height: 1.35 !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    hyphens: none !important;
+  }
+
+  p,
+  span,
+  strong,
+  small,
+  button,
+  a,
+  input,
+  textarea,
+  label,
+  div {
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    hyphens: none !important;
+  }
+
+  p,
+  .hero-desc,
+  .hero-description {
+    font-size: 1rem !important;
+    line-height: 1.75 !important;
+    max-width: 100% !important;
+    text-align: center !important;
+  }
+
+  .hero-pills,
+  .action-row,
+  .form-actions,
+  .slot-actions,
+  .list-actions,
+  .table-actions,
+  .settings-actions {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .pill,
+  .btn,
+  .action-pill {
+    width: 100% !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+    text-align: center !important;
+    white-space: normal !important;
+  }
+
+  .form-grid,
+  .stats-side,
+  .hero-side,
+  .public-meta,
+  .req-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .field--full {
+    grid-column: auto !important;
+  }
+
+  .field,
+  .field input,
+  .field textarea {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .glass-card > div,
+  .panel > div,
+  .item-card,
+  .list-card,
+  .slot-card,
+  .stat-card,
+  .mini-card,
+  .meta-item,
+  .public-meta-item,
+  .feature-item {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .stat-card,
+  .mini-card,
+  .item-card,
+  .list-card,
+  .slot-card,
+  .meta-item,
+  .public-meta-item,
+  .feature-item {
+    padding: 18px !important;
+    border-radius: 22px !important;
+    text-align: center !important;
+  }
+
+  .item-head,
+  .section-head,
+  .slot-card__head,
+  .list-card,
+  .settings-row,
+  .link-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    text-align: center !important;
+  }
+
+  .link-row input {
+    width: 100% !important;
+  }
+
+  .data-table {
+    min-width: 720px !important;
+  }
+
+  .table-wrap {
+    overflow-x: auto !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .shell {
+    width: calc(100% - 16px) !important;
+    max-width: calc(100% - 16px) !important;
+  }
+
+  .glass-card,
+  .panel,
+  .hero-landing,
+  .hero-dashboard {
+    padding: 15px !important;
+    border-radius: 22px !important;
+  }
+
+  .top-tabs,
+  .public-nav {
+    grid-template-columns: 1fr !important;
+  }
+
+  h1,
+  .hero-copy h1,
+  .hero-main h1 {
+    font-size: clamp(1.85rem, 10vw, 2.35rem) !important;
+  }
+
+  h2 {
+    font-size: clamp(1.4rem, 8vw, 1.9rem) !important;
   }
 }

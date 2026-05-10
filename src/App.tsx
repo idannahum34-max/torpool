@@ -200,7 +200,6 @@ function Logo() {
   );
 }
 
-
 function getOwnerDisplayName(user: User | null, business: Business | null) {
   const metadata = user?.user_metadata as
     | {
@@ -210,7 +209,10 @@ function getOwnerDisplayName(user: User | null, business: Business | null) {
       }
     | undefined;
 
-  const fromMetadata = metadata?.full_name || metadata?.name || metadata?.display_name;
+  const fromMetadata =
+    metadata?.full_name ||
+    metadata?.name ||
+    metadata?.display_name;
 
   if (fromMetadata && fromMetadata.trim()) {
     return fromMetadata.trim();
@@ -287,22 +289,23 @@ export default function App() {
   const waitlistLink = business ? `${window.location.origin}/?business=${business.id}&view=waitlist` : "";
   const ownerDisplayName = getOwnerDisplayName(user, business);
 
-  const scrollToMarketingSection = (sectionId: string) => {
-    const target = document.getElementById(sectionId);
-    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  const goToSignup = () => {
+  function goToSignup() {
     setAuthMode("register");
     window.setTimeout(() => {
-      const target = document.getElementById("signup");
-      if (target) {
-        target.scrollIntoView({ behavior: "smooth", block: "center" });
-      } else {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
+      document.getElementById("signup")?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 50);
-  };
+  }
+
+  function scrollToMarketingSection(sectionId: string) {
+    const target = document.getElementById(sectionId);
+
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   /* ── init ── */
   useEffect(() => {
@@ -1074,11 +1077,11 @@ export default function App() {
             <div className="top-tabs public-nav">
               <button className="top-tab active" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>בית</button>
               <button className="top-tab" onClick={() => scrollToMarketingSection("how-it-works")}>איך זה עובד</button>
-              <button className="top-tab" onClick={() => scrollToMarketingSection("pain-fit")}>למי זה מתאים</button>
+              <button className="top-tab" onClick={() => scrollToMarketingSection("who-for")}>למי זה מתאים</button>
               <button className="top-tab" onClick={() => scrollToMarketingSection("pricing")}>מחירים</button>
               <button className="top-tab" onClick={() => scrollToMarketingSection("faq")}>שאלות ותשובות</button>
             </div>
-            <button className="btn btn--primary btn--small" onClick={goToSignup}>הצטרפי לפיילוט</button>
+            <button className="btn btn--primary btn--small" onClick={goToSignup}>התחילי עכשיו</button>
           </div>
         )}
 
@@ -1109,16 +1112,16 @@ export default function App() {
           <>
             <div className="glass-card hero-landing">
               <div className="hero-copy">
-                <div className="eyebrow">לא מחליפה לך את היומן — ממלאת את החורים שנשארים בו</div>
-                <h1>לקוחה ביטלה? ממלאים את התור תוך דקות</h1>
+                <div className="eyebrow">הפלטפורמה החכמה למילוי תורים שהתבטלו</div>
+                <h1>תור שהתבטל? ממלאים אותו תוך דקות</h1>
                 <p className="hero-desc">
-                  תורפול עוזרת לקוסמטיקאיות, מניקוריסטיות ומטפלות יופי לשלוח תור שהתפנה לרשימת המתנה, לקבל בקשות מסודרות ולאשר לקוחה בלחיצה.
+                  תורפול מחברת בין בעלות עסקים ללקוחות שמחכות לתור פנוי, ומרכזת את כל הבקשות במקום אחד — כדי שתמלאי פתחים ביומן, תגדילי הכנסות ותחסכי זמן יקר.
                 </p>
                 <div className="hero-pills">
-                  <span className="pill">פותחת תור שהתפנה</span>
-                  <span className="pill">שולחת לינק או WhatsApp</span>
-                  <span className="pill">מקבלת בקשות מסודרות</span>
-                  <span className="pill">מאשרת וסוגרת הכנסה</span>
+                  <span className="pill">לינק אחד במקום בלגן</span>
+                  <span className="pill">בקשות מסודרות בזמן אמת</span>
+                  <span className="pill">רשימת המתנה חכמה</span>
+                  <span className="pill">פחות זמן מת ביומן</span>
                 </div>
               </div>
               <div className="auth-panel" id="signup">
@@ -1164,103 +1167,82 @@ export default function App() {
               </div>
             </div>
 
-            <section id="how-it-works" style={{ marginTop: 28 }}>
-              <div style={{ textAlign: "center", marginBottom: 22 }}>
-                <span className="section-kicker">מה קורה כשלקוחה מבטלת</span>
-                <h2 style={{ color: "#fff", fontSize: "clamp(1.7rem,3vw,2.8rem)", margin: "10px 0" }}>במקום לרדוף אחרי הודעות — את מפעילה תהליך ברור</h2>
-                <p style={{ color: "rgba(245,235,255,0.72)", lineHeight: 1.8, margin: 0 }}>תורפול בנויה לפעולה אחת קריטית: להפוך ביטול של הרגע האחרון לתור שמלא מחדש.</p>
+            <section className="marketing-section" id="how-it-works">
+              <div className="section-head section-head--center">
+                <span className="section-kicker">איך זה עובד</span>
+                <h2>שלושה צעדים פשוטים למילוי תור שהתבטל</h2>
+                <p>בלי לרדוף אחרי הודעות, בלי לאבד פרטים, ובלי להתחיל מאפס בכל ביטול.</p>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 18 }}>
+              <div className="marketing-grid marketing-grid--steps">
                 {[
-                  { n: "01", t: "פותחת תור שהתפנה", d: "בחרי טיפול, תאריך, שעה, מחיר והערה. פחות מחצי דקה ויש לך תור מוכן לשיתוף." },
-                  { n: "02", t: "שולחת לרשימת המתנה", d: "מעתיקה הודעת WhatsApp מוכנה או שולחת לינק ללקוחות שכבר מחכות להזדמנות." },
-                  { n: "03", t: "מקבלת בקשות מסודרות", d: "כל מי שרוצה את התור משאירה שם וטלפון — בלי לחפש מי כתבה לך איפה." },
-                  { n: "04", t: "מאשרת לקוחה", d: "את בוחרת את הלקוחה המתאימה, התור נסגר, והשאר מסומנות אוטומטית." },
+                  { n: "01", t: "מפרסמות תור שהתפנה", d: "מכניסות טיפול, שעה, מחיר והערה — ומקבלות לינק נקי לשיתוף ב־WhatsApp או בסטורי." },
+                  { n: "02", t: "מקבלות בקשות מסודרות", d: "כל הלקוחות שמעוניינות מופיעות במקום אחד עם שם, טלפון ושעת בקשה — בלי בלגן בצ׳אטים." },
+                  { n: "03", t: "מאשרות וסוגרות את החור", d: "בוחרות לקוחה מתאימה, סוגרות את התור, ושאר הבקשות מסומנות אוטומטית כלא רלוונטיות." },
                 ].map(f => (
-                  <div key={f.n} className="glass-card" style={{ padding: "26px" }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg,#ffd7e9,#bea5ff)", display: "grid", placeItems: "center", fontWeight: 900, color: "#1c0e20", marginBottom: 12 }}>{f.n}</div>
-                    <h3 style={{ color: "#fff", margin: "0 0 8px" }}>{f.t}</h3>
-                    <p style={{ color: "rgba(245,235,255,0.7)", lineHeight: 1.7, margin: 0 }}>{f.d}</p>
+                  <div key={f.n} className="glass-card marketing-card step-card">
+                    <div className="step-number">{f.n}</div>
+                    <h3>{f.t}</h3>
+                    <p>{f.d}</p>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section id="pain-fit" style={{ marginTop: 46 }}>
-              <div style={{ textAlign: "center", marginBottom: 22 }}>
+            <section className="marketing-section" id="who-for">
+              <div className="section-head section-head--center">
                 <span className="section-kicker">למי זה מתאים</span>
-                <h2 style={{ color: "#fff", fontSize: "clamp(1.7rem,3vw,2.8rem)", margin: "10px 0" }}>לא לכל עסק. לעסק שמפסיד כסף כשנוצר חור ביומן.</h2>
-                <p style={{ color: "rgba(245,235,255,0.72)", lineHeight: 1.8, margin: 0 }}>אם את כבר מנהלת תורים במקום אחר — מעולה. תורפול לא מחליפה אותו, היא מצילה את השעות שהתפנו.</p>
+                <h2>לכל בעלת עסק שהיומן שלה שווה כסף</h2>
+                <p>תורפול בנוי לעסקים שבהם ביטול של שעה הוא הפסד הכנסה אמיתי — לא עוד "אולי מישהי תראה בסטורי".</p>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 18 }}>
+              <div className="marketing-grid marketing-grid--audiences">
                 {[
-                  { t: "יש לך ביטולים ברגע האחרון", d: "ואת לא רוצה להתחיל לרדוף אחרי לקוחות בוואטסאפ ובסטורי." },
-                  { t: "יש לך רשימת המתנה", d: "אבל אין לך דרך מהירה ומסודרת להפעיל אותה כשנפתח תור." },
-                  { t: "את מעלה סטורי על תור פנוי", d: "ומקווה שמישהי רלוונטית תראה אותו בזמן ותענה מהר." },
-                  { t: "כל שעה ביומן שווה כסף", d: "ואת רוצה להפוך חורים להכנסה בלי להוסיף עוד כאב ראש." },
+                  { t: "מניקוריסטיות", d: "לק ג׳ל, בנייה, מילוי ותיקונים — תורים קצרים שקל למלא אם שולחים אותם מהר לקהל הנכון." },
+                  { t: "קוסמטיקאיות", d: "טיפולי פנים, גבות ושיקום עור — ביטול אחד יכול להיות מאות שקלים שלא חייבים להיעלם." },
+                  { t: "מעצבות גבות וריסים", d: "שעות מבוקשות שמתפנות ברגע האחרון ומושלמות לרשימת המתנה מקומית." },
+                  { t: "מטפלות יופי עצמאיות", d: "עסקים קטנים בלי מזכירה, שרוצות כלי פשוט שיחסוך הודעות, תזכורות ורדיפה אחרי לקוחות." },
                 ].map(item => (
-                  <div className="glass-card" style={{ padding: "26px" }} key={item.t}>
-                    <span style={{ display: "grid", width: 36, height: 36, borderRadius: 12, placeItems: "center", background: "rgba(255,145,202,.14)", color: "#ffc1df", marginBottom: 12 }}>✦</span>
-                    <h3 style={{ color: "#fff", margin: "0 0 8px" }}>{item.t}</h3>
-                    <p style={{ color: "rgba(245,235,255,0.7)", lineHeight: 1.7, margin: 0 }}>{item.d}</p>
+                  <div key={item.t} className="glass-card audience-card">
+                    <div className="audience-icon">✦</div>
+                    <h3>{item.t}</h3>
+                    <p>{item.d}</p>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section id="features" style={{ marginTop: 46 }}>
-              <div style={{ textAlign: "center", marginBottom: 22 }}>
-                <span className="section-kicker">מה מקבלים</span>
-                <h2 style={{ color: "#fff", fontSize: "clamp(1.7rem,3vw,2.8rem)", margin: "10px 0" }}>כל מה שצריך כדי למלא תור שהתבטל — בלי מערכת כבדה</h2>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 18 }}>
-                {[
-                  { t: "רשימת המתנה חכמה", d: "לקוחות משאירות זמינות, ואת שולחת תור שהתפנה למי שבאמת יכולה להגיע." },
-                  { t: "לינק לתור שהתבטל", d: "פותחת תור, מעתיקה לינק, ושולחת בוואטסאפ, בסטורי או בפרטי." },
-                  { t: "בקשות במקום אחד", d: "כל הלקוחות שרוצות את התור מופיעות מסודר — לא מפוזרות בין הודעות." },
-                  { t: "אישור בלחיצה", d: "בחרי לקוחה, אשרי, והתור נסגר. השאר מסומנות אוטומטית." },
-                ].map(item => (
-                  <div className="glass-card" style={{ padding: "26px" }} key={item.t}>
-                    <span style={{ display: "grid", width: 36, height: 36, borderRadius: 12, placeItems: "center", background: "rgba(123,240,184,.14)", color: "#a6ffd0", marginBottom: 12 }}>✓</span>
-                    <h3 style={{ color: "#fff", margin: "0 0 8px" }}>{item.t}</h3>
-                    <p style={{ color: "rgba(245,235,255,0.7)", lineHeight: 1.7, margin: 0 }}>{item.d}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section id="pricing" style={{ marginTop: 46 }}>
-              <div className="glass-card" style={{ padding: "34px", display: "grid", gridTemplateColumns: "1.4fr .7fr", gap: 22, alignItems: "center" }}>
+            <section className="marketing-section" id="pricing">
+              <div className="glass-card pricing-band">
                 <div>
                   <span className="section-kicker">מחירים</span>
-                  <h2 style={{ color: "#fff", fontSize: "clamp(1.7rem,3vw,2.8rem)", margin: "10px 0" }}>פיילוט פשוט. בלי התחייבות.</h2>
-                  <p style={{ color: "rgba(245,235,255,0.72)", lineHeight: 1.8, margin: 0 }}>מתאים לשלב שבו את רוצה לבדוק אם תורפול באמת מחזיר לך כסף מתורים שהתבטלו — בלי להחליף את היומן הקיים.</p>
+                  <h2>מחיר פיילוט פשוט. בלי התחייבות.</h2>
+                  <p>
+                    מתאים לשלב שבו את רוצה לבדוק אם תורפול באמת מחזיר לך כסף מתורים שהתבטלו — לפני שמתחייבים למערכת גדולה.
+                  </p>
                 </div>
-                <div className="glass-card" style={{ padding: "26px", textAlign: "center" }}>
-                  <span style={{ color: "rgba(245,235,255,.7)", fontWeight: 800 }}>החל מ־</span>
-                  <strong style={{ display: "block", color: "#fff", fontSize: "3rem", margin: "6px 0" }}>49 ₪</strong>
-                  <small style={{ display: "block", color: "rgba(245,235,255,.65)", marginBottom: 18 }}>לחודש בתקופת הפיילוט</small>
-                  <button className="btn btn--primary btn--full" type="button" onClick={goToSignup}>הצטרפי לפיילוט</button>
+                <div className="pricing-card-mini">
+                  <span>החל מ־</span>
+                  <strong>49 ₪</strong>
+                  <small>לחודש בתקופת הפיילוט</small>
+                  <button className="btn btn--primary btn--full" type="button" onClick={goToSignup}>תתחילי עכשיו</button>
                 </div>
               </div>
             </section>
 
-            <section id="faq" style={{ marginTop: 46 }}>
-              <div style={{ textAlign: "center", marginBottom: 22 }}>
+            <section className="marketing-section" id="faq">
+              <div className="section-head section-head--center">
                 <span className="section-kicker">שאלות ותשובות</span>
-                <h2 style={{ color: "#fff", fontSize: "clamp(1.7rem,3vw,2.8rem)", margin: "10px 0" }}>מה חשוב לדעת לפני שמתחילות?</h2>
+                <h2>מה חשוב לדעת לפני שמתחילות?</h2>
               </div>
-              <div style={{ display: "grid", gap: 14 }}>
+              <div className="faq-grid">
                 {[
-                  { q: "האם תורפול מחליפה את היומן שלי?", a: "לא. אם כבר יש לך יומן או מערכת תורים, תמשיכי להשתמש בהם. תורפול נועדה למלא תורים שהתבטלו." },
-                  { q: "האם לקוחות צריכות לפתוח חשבון?", a: "לא. לקוחה מקבלת לינק, משאירה שם וטלפון, ואת רואה את הבקשה במערכת." },
-                  { q: "האם התור מאושר אוטומטית?", a: "לא. את נשארת בשליטה ובוחרת למי לאשר את התור." },
-                  { q: "מה קורה אם כמה לקוחות מבקשות את אותו תור?", a: "כולן מופיעות אצלך מסודר. כשאת מאשרת אחת, המערכת מסמנת את השאר כנדחו." },
-                  { q: "אפשר להשתמש רק ברשימת המתנה?", a: "כן. אפשר לשלוח לינק קבוע לרשימת המתנה גם בלי לפרסם תור מסוים." },
+                  { q: "לקוחות צריכות לפתוח חשבון?", a: "לא. לקוחה מקבלת לינק, משאירה שם וטלפון, ואת רואה את הבקשה בדשבורד." },
+                  { q: "אפשר להשתמש עם WhatsApp?", a: "כן. תורפול בנוי סביב שיתוף מהיר ב־WhatsApp, סטורי ורשימות תפוצה קיימות." },
+                  { q: "מי מאשרת את התור?", a: "את. השארת פרטים לא סוגרת תור אוטומטית — את בוחרת למי לאשר." },
+                  { q: "מה קורה עם רשימת המתנה?", a: "לקוחות יכולות להירשם מראש בלי חשבון, ורק את כבעלת העסק רואה ומנהלת את הרשימה." },
                 ].map(item => (
-                  <div className="glass-card" style={{ padding: "22px 26px" }} key={item.q}>
-                    <h3 style={{ color: "#fff", margin: "0 0 8px" }}>{item.q}</h3>
-                    <p style={{ color: "rgba(245,235,255,0.7)", lineHeight: 1.7, margin: 0 }}>{item.a}</p>
+                  <div key={item.q} className="glass-card faq-card">
+                    <h3>{item.q}</h3>
+                    <p>{item.a}</p>
                   </div>
                 ))}
               </div>
